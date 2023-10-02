@@ -4,11 +4,7 @@ package com.tsp.jimi_api.controllers;
 import com.tsp.jimi_api.entities.Agenda;
 import com.tsp.jimi_api.enums.Categories;
 import com.tsp.jimi_api.global.Shared;
-import com.tsp.jimi_api.records.UserMessages;
-import com.tsp.jimi_api.records.UserMessage;
-import com.tsp.jimi_api.records.OpenAIEventInfo;
-import com.tsp.jimi_api.records.ChatResponse;
-import com.tsp.jimi_api.records.ChatRequest;
+import com.tsp.jimi_api.records.*;
 
 
 import com.tsp.jimi_api.repositories.AgendaRepository;
@@ -92,8 +88,8 @@ public class ChatController {
      * @return 200 OK.
      */
     @Operation(summary = "Send a message to jimi and Get the response.")
-    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Conversation sucessufully made", content = {
-            @Content(mediaType = "application/json", schema = @Schema(implementation = UserMessages.class))}),
+    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Conversation sucessfully made", content = {
+            @Content(mediaType = "application/json", schema = @Schema(implementation = UserAnswer.class))}),
             @ApiResponse(responseCode = "400", description = "Communication failed", content = {
                     @Content(mediaType = "application/json", examples = {
                             @ExampleObject(name = "User id error", description = "Missing or incorrect type of provided user id", value = """
@@ -138,8 +134,8 @@ public class ChatController {
             openAIEventInfo.setCategory(Categories.OTHER);
         }
 
-        JSONObject answer = performAction(openAIEventInfo, agendaRepository);
-        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(answer.toString(INDENT));
+        UserAnswer answer = performAction(openAIEventInfo, agendaRepository);
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(answer.toJson().toString(INDENT));
     }
 
     /**
@@ -180,7 +176,7 @@ public class ChatController {
      * @param agendaRepository the agenda repository
      * @return the string
      */
-    private JSONObject performAction(final OpenAIEventInfo info, final AgendaRepository agendaRepository) {
+    private UserAnswer performAction(final OpenAIEventInfo info, final AgendaRepository agendaRepository) {
         String response;
         response = switch (info.getCategory()) {
             case CREATE -> createEvent(info, agendaRepository);
@@ -189,9 +185,7 @@ public class ChatController {
             case GET -> getEvent(info, agendaRepository);
             case OTHER -> other(info);
         };
-        JSONObject responseJSON = new JSONObject();
-        responseJSON.put("message", response);
-        return responseJSON;
+        return new UserAnswer(response);
     }
 
     /**
