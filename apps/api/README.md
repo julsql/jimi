@@ -188,6 +188,14 @@ GRANT ALL PRIVILEGES ON *.* TO 'username'@'%' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 ```
 
+Create the database Jimi: connect to maria `sudo mysql -u root -p` and execute:
+```sql
+CREATE DATABASE JIMI
+USE JIMI
+```
+
+Then create the table with the sql code [create.sql](src/main/resources/create.sql)
+
 ## Usage
 The JIMI API handles requests made by the [JIMI Flutter App](https://github.com/JIMIDevLab/jimi_app) to interact with the database.
 
