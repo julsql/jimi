@@ -138,8 +138,8 @@ Add the Apache configuration ```/etc/apache2/sites-available/spring-config.conf`
 
    ```txt
    <VirtualHost *:80>
-   ServerName jimi.h.minet.net
-   ServerAdmin julsql1@gmail.com
+   ServerName url.domain.com
+   ServerAdmin admin@email.fr
    
        ProxyPass / http://localhost:8080/
        ProxyPassReverse / http://localhost:8080/
@@ -240,6 +240,3 @@ This project is licensed under the MIT License. For more information, see the [L
 
 ## Authors
 - Jul SQL
-- Iris Marjollet
-- Margot Berton
-- Inès Kacer
