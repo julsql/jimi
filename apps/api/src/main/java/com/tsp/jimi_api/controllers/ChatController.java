@@ -98,6 +98,12 @@ public class ChatController {
                                         "reason": "Incorrect or missing user id."
                                     }
                                     """),
+                            @ExampleObject(name = "No more credit", description = "No more credit on OpenAI", value = """
+                                    {
+                                        "error": "Communication with Open AI failed.",
+                                        "reason": "No more credit."
+                                    }
+                                    """),
                             })})})
     @PostMapping("/chat")
     @ResponseStatus(HttpStatus.OK)
