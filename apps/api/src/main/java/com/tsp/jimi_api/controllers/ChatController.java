@@ -82,7 +82,7 @@ public class ChatController {
     }
 
     /**
-     * Chat request to comunicate with the chatbot JIMI.
+     * Chat request to communicate with the chatbot JIMI.
      *
      * @param userMessages the messages sent by the user
      * @return 200 OK.
@@ -113,8 +113,14 @@ public class ChatController {
         if (!reason.isEmpty()) {
             return Shared.raiseError(error, reason, logger);
         }
-
-        String responseJson = askOpenAi(userMessages.userMessages(), CONTEXT);
+        String responseJson = null;
+        try {
+            responseJson = askOpenAi(userMessages.userMessages(), CONTEXT);
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            return Shared.raiseError("Communication with Open AI failed.", "No more credit.", logger);
+        } catch (Exception e) {
+            return Shared.raiseError(e.getClass().toString(), e.getMessage(), logger);
+        }
 
         if (responseJson == null) {
             reason = "No response";
@@ -126,7 +132,6 @@ public class ChatController {
             reason = "No response";
             return Shared.raiseError(error, reason, logger);
         }
-        System.out.println(response.getChoices().get(0).getMessage().getContent());
 
         OpenAIEventInfo openAIEventInfo = new OpenAIEventInfo(userMessages.userMessages(), response.getChoices().get(0).getMessage().getContent(), userMessages.userId());
 
@@ -146,26 +151,15 @@ public class ChatController {
      * @return the string
      */
     public String askOpenAi(final List<UserMessage> prompts, final String context) {
-        try {
-            RestTemplate restTemplate = new RestTemplate();
-            ChatRequest request = new ChatRequest(model, prompts, context);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Authorization", "Bearer " + openaiApiKey);
+        RestTemplate restTemplate = new RestTemplate();
+        ChatRequest request = new ChatRequest(model, prompts, context);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Authorization", "Bearer " + openaiApiKey);
 
-            System.out.println("The Request sent to OpenAI: ");
-            System.out.println(request.toJson().toString(INDENT));
-
-            HttpEntity<String> requestEntity = new HttpEntity<>(request.toJson().toString(), headers);
-
-            ResponseEntity<String> responseEntity = restTemplate.postForEntity(apiUrl, requestEntity, String.class);
-
-            return responseEntity.getBody();
-        } catch (Exception e) {
-            // Handle the exception or log the error message
-            e.printStackTrace();
-            return "Error: " + e.getMessage();
-        }
+        HttpEntity<String> requestEntity = new HttpEntity<>(request.toJson().toString(), headers);
+        ResponseEntity<String> responseEntity = restTemplate.postForEntity(apiUrl, requestEntity, String.class);
+        return responseEntity.getBody();
     }
 
 
@@ -269,7 +263,6 @@ public class ChatController {
 
         List<UserMessage> prompts = new ArrayList<>();
         UserMessage agenda = new UserMessage("Agenda", agendaMessage.toString());
-        System.out.println(agenda);
         prompts.add(agenda);
         prompts.add(info.getPrompts().get(info.getPrompts().size() - 1));
 
@@ -284,7 +277,6 @@ public class ChatController {
             return "No response";
         }
         String answer = response.getChoices().get(0).getMessage().getContent();
-        System.out.println(answer);
 
         JSONObject answerJson = new JSONObject(answer);
         return (String) answerJson.get("answer");
