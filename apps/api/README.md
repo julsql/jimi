@@ -1,265 +1,350 @@
 # JIMI API
 
-## Overview
+A Spring Boot 3 backend for the JIMI calendar assistant. The user
+sends a natural-language message ("Plan a meeting tomorrow at 2pm");
+the API asks an LLM to extract structured event data and CRUDs it on
+a MariaDB `agenda` table. When the LLM doesn't have enough info, the
+API parks a draft conversation server-side and asks the frontend for
+the missing fields — multi-turn extraction without any client-side
+state machine.
 
-JIMI is a school project aimed at developing an application for managment of time and calendar, which includes the functionality to open chat with a chatbot that will handle the database of the calendar.
+The web/Android client lives in the sibling
+[`jimi_app`](../jimi_app) repo.
 
-This JIMI API is a Java-based API built using Spring Boot. The answer and NLP usage are using the OpenAI API. It allows users to perform various operations on a MariaBD database, facilitating calendar management functionalities. This README provides essential information on how to set up and use the project.
+## Table of contents
 
-## Table of Contents
-
-- [Local installation](#local-installation)
-- [Deployment](#deployment)
-- [SQL](#sql)
-- [Usage](#usage)
+- [How it works](#how-it-works)
+- [Stack](#stack)
+- [Quickstart](#quickstart)
+- [Configuration](#configuration)
+- [API contract](#api-contract)
+- [Architecture](#architecture)
 - [Database](#database)
-- [Structure](#structure)
+- [Swapping LLM provider](#swapping-llm-provider)
+- [Deployment](#deployment)
 - [License](#license)
 - [Authors](#authors)
 
-## Local installation
+## How it works
 
-To get started with the JIMI Chatbot, follow these steps:
-
-1. Clone the repository:
-   ```shell
-   git clone git@github.com:JIMIDevLab/jimi_api.git
-   ```
-
-2. Navigate to the project directory:
-
-    ```shell
-    cd jimi_api
-   ```
-
-3. Install the required dependencies (listed in the [pom.xml](pom.xml)) and run the tests:
-
-    ```shell
-    ./mvnw clean install
-    ```
-
-4. Configure your database connection and openAI key by creating the [application.yml](src/main/resources/application.yml) file.
-
-    ```yaml
-   # Specifies server port
-   server:
-      port: 8080
-      servlet:
-          encoding:
-              charset: UTF-8
-              force-response: true
-              enabled: true
-   
-   spring:
-      datasource:
-        url: jdbc:mariadb://SERVER_IP:3306/DATABASE?useSSL=false&serverTimezone=America/New_York
-        username: username
-        password: password
-        driver-class-name: org.mariadb.jdbc.Driver
-        defer-datasource-initialization: true
-      sql:
-        init:
-        mode: never
-   
-   # Swagger setting to visualize JSON format in doc page.
-   springdoc:
-     default-produces-media-type: application/json
-   
-   openai:
-     model: gpt-3.5-turbo
-     api:
-       url: https://api.openai.com/v1/chat/completions
-       key: api-key
-   
-   logging:
-     level:
-       org:
-         springframework:
-           jdbc:
-             core: DEBUG
-           web: info
-       root: info
-     file:
-       path: ./logs
-   ```
-   
-5. Build and run the application:
-
-    ```shell
-    ./mvnw spring-boot:run
-    ```
-
-6. Access the API documentation using Swagger UI at
-   http://localhost:8080/swagger-ui.html.
-
-   > You can also create a SpringBoot configuration on IntelliJ by running the file [JimiApiApplication.java](src/main/java/com/tsp/jimi_api/JimiApiApplication.java)
-
-## Deployment
-
-Configure the VM
-
-```shell
-sudo apt-get update
-sudo apt-get install apache2
-sudo apt-get install git
-sudo apt-get install openjdk-17-jdk
+```
+                   ┌──────────────────────────────────────┐
+ user message      │  ChatController                      │
+─────────────────▶ │     ↓                                │
+                   │  ChatService                         │
+                   │     ├─── LlmClient (Mistral default) │
+                   │     │      "extract structured JSON" │
+                   │     │                                │
+                   │     ├─── if missing info             │
+                   │     │      → save draft + return     │
+                   │     │        conversationId          │
+                   │     │                                │
+                   │     └─── else → AgendaService.crud() │
+                   │              → MariaDB               │
+                   └──────────────────────────────────────┘
 ```
 
-Add PATH:
+1. **First turn** — frontend posts `{ userId, message, conversationId: null }`.
+2. **Extraction** — the LLM returns a strict JSON object: category
+   (`CREATE`/`EDIT`/`DELETE`/`GET`/`OTHER`), event fields, missing
+   fields, and a friendly reply.
+3. **If incomplete** — the API persists a draft `conversation` row
+   and returns `status: AWAITING_INFO` with the `conversationId` and
+   the list of `missingFields`. The frontend echoes the
+   `conversationId` with the user's next message.
+4. **If complete** — `AgendaService` applies the action (insert,
+   update, delete, or fetch) and returns `status: COMPLETED`.
+5. **Schedule queries** — bypass the LLM entirely:
+   `GET /agenda?userId=...` reads straight from MariaDB.
+
+The extraction prompt is written to **never hallucinate**: when the
+agenda is empty or info is missing, the LLM asks rather than
+inventing. See [`global/Prompts.java`](src/main/java/com/tsp/jimi_api/global/Prompts.java).
+
+## Stack
+
+- **Spring Boot 3** + **Java 17** (built with Maven)
+- **MariaDB 11** (via Hibernate / Spring Data JPA, `ddl-auto=update`)
+- **Mistral AI** by default — any OpenAI-compatible
+  `/chat/completions` endpoint works (Groq, Ollama, OpenRouter…)
+- **springdoc-openapi 2.1** for the live OpenAPI / Swagger UI
+- Docker Compose for the runtime stack
+
+## Quickstart
+
+### Full stack (API + DB) with Docker
 
 ```bash
-nano ~/.bashrc
-# export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-source ~/.bashrc
-```
-
-Then clone the project
-
-```shell
-git clone git@github.com:JIMIDevLab/jimi_api.git
+git clone <this-repo>
 cd jimi_api
+
+cp .env.example .env
+# edit .env — at minimum set MISTRAL_API_KEY=...
+
+docker compose up -d --build
 ```
 
-You need to generate the .jar file to run in the VM.
+Open Swagger UI at <http://localhost:8102/swagger-ui.html>.
 
-```shell
+What runs:
+
+| Service | Image                | Host port             | Notes                                  |
+|---------|----------------------|-----------------------|----------------------------------------|
+| `api`   | built locally        | `127.0.0.1:8102→8080` | Spring Boot backend                    |
+| `db`    | `mariadb:11`         | (internal only)       | data persisted in volume `jimi-db-data` |
+
+Wipe and restart from scratch: `docker compose down -v`.
+
+### DB-only (run the JAR on your host)
+
+If you'd rather run the backend with `./run.sh` and only need
+MariaDB in a container:
+
+```bash
+docker compose -f docker-compose.db.yml up -d
+./run.sh
+```
+
+(Add `DB_URL=jdbc:mariadb://localhost:3306/JIMI?useSSL=false&serverTimezone=Europe/Paris`
+to `.env` first.)
+
+### No Docker at all
+
+```bash
 ./mvnw clean install
+./run.sh                  # auto-loads .env then mvnw spring-boot:run
 ```
 
-> Don't forget to add the application.yml file with your configuration as written in [Local installation](#local-installation)
+## Configuration
 
-Then you launch the jar file in the server:
-   ```shell
-   nohup java -jar target/jimi-api.jar &
-   ```
-    
-Add the Apache configuration `sudo nano /etc/apache2/sites-available/spring-config.conf`
+`application.yml` reads everything from environment variables with
+safe defaults. Secrets live in `.env` (gitignored). **Never commit
+credentials.**
 
-   ```txt
-   <VirtualHost *:80>
-   ServerName url.domain.com
-   ServerAdmin admin@email.fr
-   
-       ProxyPass / http://localhost:8080/
-       ProxyPassReverse / http://localhost:8080/
-   
-       ErrorLog ${APACHE_LOG_DIR}/error.log
-       CustomLog ${APACHE_LOG_DIR}/access.log combined
-   </VirtualHost>
-   ```
+| Variable             | Purpose                              | Default                                                |
+|----------------------|--------------------------------------|--------------------------------------------------------|
+| `MISTRAL_API_KEY`    | LLM API key — **required**           | _(empty — required)_                                   |
+| `LLM_API_KEY`        | Fallback if `MISTRAL_API_KEY` unset  | _(empty)_                                              |
+| `LLM_URL`            | Chat-completions endpoint            | `https://api.mistral.ai/v1/chat/completions`           |
+| `LLM_MODEL`          | Model name                           | `mistral-small-latest`                                 |
+| `DB_URL`             | JDBC URL                             | _(prod URL — override locally)_                        |
+| `DB_USERNAME`        | DB user                              | `julsql`                                               |
+| `DB_PASSWORD`        | DB password                          | _(empty — set it)_                                     |
+| `API_PORT`           | Host port for the api container      | `8102`                                                 |
+| `SPRING_PROFILES_ACTIVE` | Spring profile                   | `prod`                                                 |
 
-Run the configuration
+## API contract
 
-```shell
-sudo a2ensite spring-config.conf
-sudo a2enmod proxy
-sudo a2enmod proxy_http
-sudo a2enmod proxy_html
-sudo systemctl restart apache2
-```
+### `POST /chat` — natural-language turn (LLM)
 
-Add the Service `sudo nano /etc/systemd/system/spring-service.service`
+**Request**
 
-```
-[Unit]
-Description=API Spring Boot du projet JIMI
-
-[Service]
-User=julsql
-ExecStart=/usr/bin/java -jar /home/julsql/jimi_api/target/jimi-api.jar &
-Restart=always
-SuccessExitStatus=143
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Activate the service
-
-```bash
-sudo systemctl start spring-service
-sudo systemctl enable spring-service
-```
-
-To find the processus, run
-
-```shell
-ps aux | grep jimi-api.jar
-# kill 12345
-```
-
-## SQL
-
-Configure MariaDB on a server
-```bash
-sudo apt update
-sudo apt install mariadb-server
-sudo systemctl status mariadb
-sudo mysql_secure_installation
-sudo mysql -u root -p
-
-sudo nano /etc/mysql/mariadb.conf.d/50-server.cnf
-# bind-address = 0.0.0.0
-sudo systemctl restart mariadb
-```
-
-```mysql
-CREATE USER 'username'@'localhost' IDENTIFIED BY 'password';
-GRANT ALL PRIVILEGES ON *.* TO 'username'@'localhost' WITH GRANT OPTION;
-CREATE USER 'username'@'%' IDENTIFIED BY 'password';
-GRANT ALL PRIVILEGES ON *.* TO 'username'@'%' WITH GRANT OPTION;
-FLUSH PRIVILEGES;
-```
-
-Create the database Jimi: connect to maria `sudo mysql -u root -p` and execute:
-```sql
-CREATE DATABASE JIMI
-USE JIMI
-```
-
-Then create the table with the sql code [create.sql](src/main/resources/create.sql)
-
-## Usage
-The JIMI API handles requests made by the [JIMI Flutter App](https://github.com/JIMIDevLab/jimi_app) to interact with the database.
-
-For detailed API documentation and usage examples, refer to the Swagger Documentation when running the application locally or on the deployed API http://jimi-api.julsql.fr/swagger-ui/index.html#/.
-
-## ChatGPT
-
-The request sent to the OpenAI API must be a JSON format like this:
 ```json
 {
-   "model":"gpt-3.5-turbo",
-   "messages":[
-      {
-         "role":"system",
-         "content":"You are a helpful assistant."
-      },
-      {
-         "role":"user",
-         "content":"Quelle est la capitale de la France ?"
-      }
-   ]
+  "userId": "user-123",
+  "message": "Plan a meeting tomorrow at 2pm",
+  "conversationId": null
 }
 ```
 
+`conversationId` is `null` for a fresh request, or the value
+returned by a previous response.
+
+**Response — info still missing (HTTP 200)**
+
+```json
+{
+  "conversationId": "9f8e7d6c-...",
+  "status": "AWAITING_INFO",
+  "message": "Sure! When does the meeting end? 🙂",
+  "missingFields": ["end_time"]
+}
+```
+
+The frontend keeps `conversationId` and re-sends it with the user's
+next message. The server merges the new info into the stored draft.
+
+**Response — completed (HTTP 200)**
+
+```json
+{
+  "conversationId": null,
+  "status": "COMPLETED",
+  "message": "Done! Meeting added on 2026-04-29 from 14:00 to 15:00.",
+  "missingFields": []
+}
+```
+
+`COMPLETED` means the action was applied (or the message was
+off-topic). The frontend can drop any cached `conversationId`.
+
+**Response — error (HTTP 400)**
+
+```json
+{ "error": "Chat request failed.", "reason": "Incorrect or missing user id." }
+```
+
+### `GET /agenda?userId=<id>` — read-only event list (no LLM)
+
+Returns all events for a user, sorted by date then start time.
+This is what the frontend's schedule page uses — by design the LLM
+is **never** in the loop, so no hallucinated events.
+
+```json
+[
+  {
+    "id": 1,
+    "date": "2026-04-29",
+    "beginTime": "14:00:00",
+    "endTime": "15:00:00",
+    "type": "PRO",
+    "title": "Meeting"
+  }
+]
+```
+
+### `GET /` — health-check
+
+Returns the JIMI logo as PNG (used by uptime checks).
+
+### Swagger / OpenAPI
+
+- UI: <http://localhost:8102/swagger-ui.html>
+- JSON: <http://localhost:8102/v3/api-docs>
+- Production: <https://jimi-api.julsql.fr/swagger-ui/index.html>
+
+## Architecture
+
+The controller stays thin; logic lives in services.
+
+```
+ChatController  →  ChatService          →  LlmClient (interface)
+                                            └─ OpenAiCompatibleLlmClient
+                                        →  ConversationService → ConversationRepository
+                                        →  AgendaService       → AgendaRepository
+
+AgendaController →  AgendaService       →  AgendaRepository
+```
+
+Key files:
+
+| Concern                              | File                                                                                                  |
+|--------------------------------------|-------------------------------------------------------------------------------------------------------|
+| Tweak the LLM prompt                 | [`global/Prompts.java`](src/main/java/com/tsp/jimi_api/global/Prompts.java)                           |
+| Add an LLM provider                  | new impl of [`services/llm/LlmClient`](src/main/java/com/tsp/jimi_api/services/llm/LlmClient.java)   |
+| Change request/response shape        | [`records/ChatApiRequest.java`](src/main/java/com/tsp/jimi_api/records/ChatApiRequest.java), [`ChatApiResponse.java`](src/main/java/com/tsp/jimi_api/records/ChatApiResponse.java), [`ChatController.java`](src/main/java/com/tsp/jimi_api/controllers/ChatController.java) |
+| Change agenda persistence            | [`entities/Agenda.java`](src/main/java/com/tsp/jimi_api/entities/Agenda.java), [`services/AgendaService.java`](src/main/java/com/tsp/jimi_api/services/AgendaService.java), [`resources/create.sql`](src/main/resources/create.sql) |
+| Multi-turn conversation logic        | [`services/ConversationService.java`](src/main/java/com/tsp/jimi_api/services/ConversationService.java) |
+
 ## Database
-To manipulate the database, you can run the sql file:
 
-- [create.sql](src/main/resources/create.sql) to drop and create the structure.
+Two tables, defined in
+[`src/main/resources/create.sql`](src/main/resources/create.sql)
+and auto-applied by Hibernate (`ddl-auto=update`):
 
-## Structure
+- **`agenda`** — calendar events
+  (`id`, `date`, `type`, `begin_time`, `end_time`, `title`, `user_id`).
+- **`conversation`** — in-progress draft extractions keyed by UUID
+  (`status`, partial `draft_json`, full `history_json`, timestamps).
+  Drafts are marked `COMPLETED` once the action is applied.
 
-- [configurations/](src/main/java/com/tsp/jimi_api/configurations): Configurations files.
-- [controllers/](src/main/java/com/tsp/jimi_api/controllers): All the requests of the API.
-- [entities/](src/main/java/com/tsp/jimi_api/entities): Entities of the database.
-- [enums/](src/main/java/com/tsp/jimi_api/enums): Enums classes.
-- [global/](src/main/java/com/tsp/jimi_api/global): Shared functions between multiple classes.
-- [records/](src/main/java/com/tsp/jimi_api/records): Records of the input and output data.
-- [repositories/](src/main/java/com/tsp/jimi_api/repositories): SQL requests to the database.
+## Swapping LLM provider
+
+The `LlmClient` interface is provider-agnostic. The default
+implementation, `OpenAiCompatibleLlmClient`, talks to any
+OpenAI-compatible `/chat/completions` endpoint. Swap by overriding
+`LLM_URL` / `LLM_MODEL` (and the matching API key):
+
+| Provider   | `LLM_URL`                                         | Sample `LLM_MODEL`                  |
+|------------|---------------------------------------------------|-------------------------------------|
+| Mistral    | `https://api.mistral.ai/v1/chat/completions`      | `mistral-small-latest`              |
+| Groq       | `https://api.groq.com/openai/v1/chat/completions` | `llama-3.3-70b-versatile`           |
+| OpenRouter | `https://openrouter.ai/api/v1/chat/completions`   | `meta-llama/llama-3.3-70b-instruct` |
+| Ollama     | `http://localhost:11434/v1/chat/completions`      | `llama3.1`                          |
+
+For providers that don't support `response_format: json_object`, set
+`llm.json-mode: false` in `application.yml` and rely on the prompt
+alone.
+
+## Deployment
+
+The API is deployed independently from the frontend (the Android
+client and the browser both hit the same public API URL). Runtime
+stack: `docker-compose.yml` (api + db). The api is bound to
+`127.0.0.1:${API_PORT:-8102}` and the host's nginx reverse-proxies
+`jimi-api.julsql.fr` onto that loopback port. The db has no host
+port — it's only reachable through the docker bridge network.
+
+Only generic upstream images are pulled (`mariadb:11`,
+`maven:3.9-eclipse-temurin-17`, `eclipse-temurin:17-jre`). The api
+image is rebuilt from source on every deploy.
+
+### One-time host setup
+
+```bash
+git clone https://github.com/<owner>/jimi_api.git /opt/jimi_api
+cd /opt/jimi_api
+
+cat > .env <<EOF
+MISTRAL_API_KEY=...
+API_PORT=8102
+EOF
+
+# Drop the host nginx vhost (lives in the sibling repo)
+sudo cp /path/to/jimi_app/infra/nginx/jimi-api.julsql.fr.conf /etc/nginx/conf.d/
+sudo certbot --nginx -d jimi-api.julsql.fr
+sudo nginx -s reload
+```
+
+The user that runs `docker compose` must be in the `docker` group.
+
+### Deploy with GitHub Actions
+
+`.github/workflows/deploy.yml` runs on every push to `main` and on
+manual dispatch. Configure these repository secrets
+(*Settings → Secrets and variables → Actions*):
+
+| Secret        | Example         |
+|---------------|-----------------|
+| `SSH_HOST`    | `your.server`   |
+| `SSH_USER`    | `deploy`        |
+| `SSH_KEY`     | the SSH **private** key authorized on the server |
+| `DEPLOY_PATH` | `/opt/jimi_api` |
+
+The workflow SSHes onto the server and runs:
+
+```bash
+cd $DEPLOY_PATH
+git pull
+docker compose down
+docker compose build --no-cache
+docker compose up -d
+docker image prune -f
+```
+
+### Deploy manually
+
+Same five commands, packaged in `deploy.sh`:
+
+```bash
+DEPLOY_HOST=deploy@your.server \
+DEPLOY_PATH=/opt/jimi_api \
+./deploy.sh
+```
+
+Or by hand:
+
+```bash
+ssh deploy@your.server
+cd /opt/jimi_api
+git pull
+docker compose up -d --build
+```
 
 ## License
-This project is licensed under the MIT License. For more information, see the [LICENSE](LICENSE) file.
+
+MIT — see [LICENSE](LICENSE).
 
 ## Authors
+
 - Jul SQL

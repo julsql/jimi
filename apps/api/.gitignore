@@ -3,7 +3,10 @@ nohup.out
 *.DS_Store
 target/
 logs/
-*application.yml
+# Local secrets (LLM keys, DB password, etc.) — NEVER commit
+.env
+.env.*
+!.env.example
 # Compiled class file
 *.class
 

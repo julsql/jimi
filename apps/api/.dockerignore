@@ -1,0 +1,13 @@
+target/
+.git/
+.idea/
+.mvn/wrapper/maven-wrapper.jar
+logs/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+*.iml
+README.md
+CLAUDE.md

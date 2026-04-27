@@ -1,0 +1,40 @@
+# DB-only stack — useful when you want to run the Spring Boot backend on
+# your host (./run.sh) and just need a real MariaDB next to it.
+#
+# Usage:
+#   docker compose -f docker-compose.db.yml up -d
+#   ./run.sh
+#   ...
+#   docker compose -f docker-compose.db.yml down       # stop, keep data
+#   docker compose -f docker-compose.db.yml down -v    # stop + wipe data
+#
+# Default credentials match those expected by the app when you set in .env:
+#   DB_URL=jdbc:mariadb://localhost:3306/JIMI?useSSL=false&serverTimezone=Europe/Paris
+#   DB_USERNAME=jimi
+#   DB_PASSWORD=jimi
+#
+# The data volume is named "jimi-db-data" — same as the full docker-compose.yml,
+# so switching between the two modes preserves your data.
+
+services:
+  db:
+    image: mariadb:11
+    container_name: jimi-db
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MARIADB_DATABASE: ${DB_NAME:-JIMI}
+      MARIADB_USER: ${DB_USERNAME:-jimi}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-jimi}
+    ports:
+      - "3306:3306"
+    volumes:
+      - jimi-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  jimi-db-data:

@@ -1,0 +1,56 @@
+# JIMI API stack: MariaDB + Spring Boot backend.
+#
+# Two services that run side-by-side, deployed independently from the
+# web frontend:
+#
+#   jimi-api.julsql.fr  →  127.0.0.1:${API_PORT}  →  api:8080
+#
+# The DB stays inside the Docker bridge network — never exposed on
+# the host. If you need a public host port for ad-hoc inspection in
+# dev, use docker-compose.db.yml instead.
+#
+# Only generic upstream images are pulled (mariadb:11 + the maven /
+# eclipse-temurin images via the Dockerfile). The api image is built
+# locally — never fetched from a registry.
+#
+# Usage:
+#   1. cp .env.example .env  (then set MISTRAL_API_KEY at minimum)
+#   2. docker compose up -d --build
+#   3. Swagger UI at http://127.0.0.1:${API_PORT:-8102}/swagger-ui.html
+
+services:
+  db:
+    image: mariadb:11
+    container_name: jimi-db
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MARIADB_DATABASE: ${DB_NAME:-JIMI}
+      MARIADB_USER: ${DB_USERNAME:-jimi}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-jimi}
+    volumes:
+      - jimi-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: .
+    container_name: jimi-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mariadb://db:3306/${DB_NAME:-JIMI}?useSSL=false&serverTimezone=Europe/Paris
+      DB_USERNAME: ${DB_USERNAME:-jimi}
+      DB_PASSWORD: ${DB_PASSWORD:-jimi}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+    ports:
+      - "127.0.0.1:${API_PORT:-8102}:8080"
+
+volumes:
+  jimi-db-data:
