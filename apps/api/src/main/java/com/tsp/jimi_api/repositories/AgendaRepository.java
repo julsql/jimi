@@ -1,6 +1,7 @@
 package com.tsp.jimi_api.repositories;
 
 import com.tsp.jimi_api.entities.Agenda;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -21,4 +22,8 @@ public interface AgendaRepository extends CrudRepository<Agenda, Long> {
      */
     @Query(value = "SELECT a FROM Agenda as a WHERE a.userId = :userId order by a.date")
     Iterable<Agenda> findByUserId(@Param("userId") String userId);
+
+    @Modifying
+    @Query("DELETE FROM Agenda a WHERE a.userId = :userId")
+    int deleteByUserId(@Param("userId") String userId);
 }
