@@ -19,6 +19,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# This workflow only SSHes into the server; it never uses the GITHUB_TOKEN,
+# so grant it no permissions at all (principle of least privilege).
+permissions: {}
+
 concurrency:
   group: deploy-api
   cancel-in-progress: false
