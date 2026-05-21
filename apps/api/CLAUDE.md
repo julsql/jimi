@@ -127,8 +127,7 @@ Two tables, both defined in `src/main/resources/create.sql`:
 - DTOs in `records/` use `org.json` (`JSONObject`/`JSONArray`) for
   serialization — match that style rather than introducing Jackson ad hoc.
 - Secrets only via env vars, loaded from `.env` (gitignored). Never paste
-  a real key into `application.yml`, code, or commit messages — the previous
-  OpenAI key leaked into git history at commit `b0955c8`; don't repeat that.
+  a real key into `application.yml`, code, or commit messages.
 - Prompts go in `global/Prompts.java`, not back into `Shared.java`.
 
 ## Common gotchas
