@@ -49,6 +49,17 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-jimi}
       MISTRAL_API_KEY: ${MISTRAL_API_KEY}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      # Calendar OAuth — forwarded from .env into the container. Without these
+      # the API boots but every connect returns "OAuth is not configured".
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+      APP_RETURN_URL: ${APP_RETURN_URL:-jimi://connected}
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+      MICROSOFT_REDIRECT_URI: ${MICROSOFT_REDIRECT_URI:-}
+      MICROSOFT_TENANT: ${MICROSOFT_TENANT:-common}
     ports:
       - "127.0.0.1:${API_PORT:-8102}:8080"
 
