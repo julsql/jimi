@@ -1,6 +1,7 @@
 package com.tsp.jimi_api.services.crypto;
 
 import com.tsp.jimi_api.configurations.CryptoProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
@@ -33,6 +34,7 @@ public class TokenCipher {
     private final SecretKey key;
     private final SecureRandom random = new SecureRandom();
 
+    @Autowired
     public TokenCipher(final CryptoProperties properties) {
         this(properties.getTokenEncryptionKey());
     }

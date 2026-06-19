@@ -2,10 +2,7 @@ package com.tsp.jimi_api.services.oauth;
 
 import com.tsp.jimi_api.configurations.GoogleOAuthProperties;
 import com.tsp.jimi_api.services.CalendarAccountService;
-import com.tsp.jimi_api.services.calendar.google.GoogleApiClient;
 import com.tsp.jimi_api.services.oauth.GoogleTokenClient.TokenResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -25,24 +22,19 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Service
 public class GoogleOAuthService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(GoogleOAuthService.class);
-
     private final GoogleOAuthProperties props;
     private final OAuthStateCodec stateCodec;
     private final GoogleTokenClient tokenClient;
     private final CalendarAccountService accounts;
-    private final GoogleApiClient api;
 
     public GoogleOAuthService(final GoogleOAuthProperties props,
                               final OAuthStateCodec stateCodec,
                               final GoogleTokenClient tokenClient,
-                              final CalendarAccountService accounts,
-                              final GoogleApiClient api) {
+                              final CalendarAccountService accounts) {
         this.props = props;
         this.stateCodec = stateCodec;
         this.tokenClient = tokenClient;
         this.accounts = accounts;
-        this.api = api;
     }
 
     public boolean isConfigured() {
@@ -74,16 +66,11 @@ public class GoogleOAuthService {
         OAuthStateCodec.StatePayload payload = stateCodec.verify(state);
         TokenResponse tokens = tokenClient.exchangeCode(code, payload.codeVerifier());
 
+        // We intentionally request only the minimal `calendar.events` scope,
+        // which does NOT grant access to the Calendars.Get metadata endpoint —
+        // so we don't look up the account email here (it would 403). The event
+        // CRUD endpoints are fully covered by this scope.
         accounts.link(payload.userId(), CalendarAccountService.GOOGLE, tokens, null);
-
-        // Best-effort: record which Google account was linked (for display).
-        String email = null;
-        try {
-            email = api.primaryCalendarEmail(payload.userId());
-            accounts.link(payload.userId(), CalendarAccountService.GOOGLE, tokens, email);
-        } catch (Exception e) {
-            LOGGER.warn("[oauth] could not fetch primary calendar email: {}", e.getMessage());
-        }
 
         return appReturn("connected");
     }

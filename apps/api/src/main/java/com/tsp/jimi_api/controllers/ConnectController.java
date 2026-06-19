@@ -1,7 +1,11 @@
 package com.tsp.jimi_api.controllers;
 
 import com.tsp.jimi_api.global.Shared;
+import com.tsp.jimi_api.records.CalDavConnectRequest;
 import com.tsp.jimi_api.services.CalendarAccountService;
+import com.tsp.jimi_api.services.calendar.caldav.CalDavAccountService;
+import com.tsp.jimi_api.services.calendar.caldav.CalDavClient;
+import com.tsp.jimi_api.services.calendar.caldav.CalDavCredentials;
 import com.tsp.jimi_api.services.oauth.GoogleOAuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import org.slf4j.Logger;
@@ -11,7 +15,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -36,11 +41,17 @@ public class ConnectController {
 
     private final GoogleOAuthService googleOAuth;
     private final CalendarAccountService accounts;
+    private final CalDavAccountService calDavAccounts;
+    private final CalDavClient calDavClient;
 
     public ConnectController(final GoogleOAuthService googleOAuth,
-                             final CalendarAccountService accounts) {
+                             final CalendarAccountService accounts,
+                             final CalDavAccountService calDavAccounts,
+                             final CalDavClient calDavClient) {
         this.googleOAuth = googleOAuth;
         this.accounts = accounts;
+        this.calDavAccounts = calDavAccounts;
+        this.calDavClient = calDavClient;
     }
 
     @Operation(summary = "Start linking the user's Google Calendar (redirects to Google consent).")
@@ -95,6 +106,46 @@ public class ConnectController {
         }
         accounts.unlink(userId, CalendarAccountService.GOOGLE);
         return ResponseEntity.ok(Map.of("disconnected", true));
+    }
+
+    @Operation(summary = "Link a CalDAV calendar (Apple iCloud / Fastmail / Nextcloud) via Basic auth.")
+    @PostMapping(value = "/connect/caldav",
+            consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> connectCalDav(@RequestBody final CalDavConnectRequest request) {
+        if (request == null || isBlank(request.userId())) {
+            return Shared.raiseError("Connect failed.", "Incorrect or missing user id.", LOGGER);
+        }
+        if (isBlank(request.serverUrl()) || isBlank(request.username()) || isBlank(request.password())) {
+            return Shared.raiseError("Connect failed.",
+                    "serverUrl, username and password are all required.", LOGGER);
+        }
+        CalDavCredentials creds = new CalDavCredentials(
+                request.serverUrl().trim(), request.username(), request.password());
+        try {
+            if (!calDavClient.validate(creds)) {
+                return Shared.raiseError("Connect failed.",
+                        "CalDAV server rejected the credentials or collection URL.", LOGGER);
+            }
+        } catch (Exception e) {
+            return Shared.raiseError("Connect failed.",
+                    "Could not reach the CalDAV collection: " + e.getMessage(), LOGGER);
+        }
+        calDavAccounts.link(request.userId(), creds);
+        return ResponseEntity.ok(Map.of("connected", true));
+    }
+
+    @Operation(summary = "Disconnect (unlink) the user's CalDAV calendar.")
+    @DeleteMapping(value = "/connect/caldav", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> disconnectCalDav(@RequestParam("userId") final String userId) {
+        if (isBlank(userId)) {
+            return Shared.raiseError("Disconnect failed.", "Incorrect or missing user id.", LOGGER);
+        }
+        calDavAccounts.unlink(userId);
+        return ResponseEntity.ok(Map.of("disconnected", true));
+    }
+
+    private static boolean isBlank(final String s) {
+        return s == null || s.isBlank();
     }
 
     private ResponseEntity<?> redirect(final String url) {

@@ -62,11 +62,31 @@ public record CalendarEvent(
     public String describe() {
         StringBuilder sb = new StringBuilder("\"").append(title == null ? "(untitled)" : title).append("\"");
         if (start != null) {
-            sb.append(" on ").append(start);
+            sb.append(" on ").append(prettyStart());
         }
         if (location != null && !location.isBlank()) {
             sb.append(" at ").append(location);
         }
         return sb.toString();
+    }
+
+    /**
+     * Wall-clock rendering of {@link #start} ("2026-06-20 13:00"), stripping the
+     * RFC3339 offset/seconds. The time portion of a provider dateTime is already
+     * in the calendar's own timezone, so we show it verbatim — this avoids the
+     * LLM re-converting "13:00:00+02:00" to UTC and reporting the wrong hour.
+     */
+    public String prettyStart() {
+        if (start == null) {
+            return "";
+        }
+        int t = start.indexOf('T');
+        if (t < 0) {
+            return start; // all-day: date only
+        }
+        String date = start.substring(0, t);
+        String time = start.substring(t + 1);
+        String hhmm = time.length() >= 5 ? time.substring(0, 5) : time;
+        return date + " " + hhmm;
     }
 }

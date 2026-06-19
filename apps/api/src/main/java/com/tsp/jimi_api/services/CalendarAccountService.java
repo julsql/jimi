@@ -96,7 +96,8 @@ public class CalendarAccountService {
                     "Access token expired and no refresh token available — please reconnect.");
         }
 
-        TokenResponse refreshed = tokenClient(provider).refresh(refreshToken);
+        // This refresh path is Google-only (Microsoft uses MicrosoftTokenStore).
+        TokenResponse refreshed = googleTokenClient.refresh(refreshToken);
         account.setAccessTokenEnc(cipher.encrypt(refreshed.accessToken()));
         account.setAccessTokenExpiry(refreshed.expiry());
         if (refreshed.refreshToken() != null) {
@@ -121,21 +122,19 @@ public class CalendarAccountService {
     }
 
     private void revokeAndDelete(final CalendarAccount account) {
-        Optional.ofNullable(account.getRefreshTokenEnc())
-                .or(() -> Optional.ofNullable(account.getAccessTokenEnc()))
-                .ifPresent(enc -> tokenClient(account.getProvider()).revoke(cipher.decrypt(enc)));
+        // Best-effort revoke at the provider. Only Google has a revoke endpoint
+        // wired here; Microsoft tokens simply expire and CalDAV has no token to
+        // revoke — for those we just drop the stored credentials.
+        if (GOOGLE.equals(account.getProvider())) {
+            Optional.ofNullable(account.getRefreshTokenEnc())
+                    .or(() -> Optional.ofNullable(account.getAccessTokenEnc()))
+                    .ifPresent(enc -> googleTokenClient.revoke(cipher.decrypt(enc)));
+        }
         repository.delete(account);
     }
 
     private boolean isExpired(final CalendarAccount account) {
         Instant expiry = account.getAccessTokenExpiry();
         return expiry == null || Instant.now().isAfter(expiry.minusSeconds(EXPIRY_SKEW_SECONDS));
-    }
-
-    private GoogleTokenClient tokenClient(final String provider) {
-        if (GOOGLE.equals(provider)) {
-            return googleTokenClient;
-        }
-        throw new IllegalArgumentException("No token client for provider: " + provider);
     }
 }

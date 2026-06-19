@@ -48,6 +48,14 @@ oauth:
     redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/oauth/google/callback}
     app-return-url: ${APP_RETURN_URL:jimi://connected}
     scope: https://www.googleapis.com/auth/calendar.events
+  # Microsoft (Outlook / 365) OAuth client. See docs/microsoft-calendar-setup.md.
+  # Blank client-id/secret → Microsoft stays disabled (NEEDS_CONNECTION).
+  microsoft:
+    client-id: ${MICROSOFT_CLIENT_ID:}
+    client-secret: ${MICROSOFT_CLIENT_SECRET:}
+    redirect-uri: ${MICROSOFT_REDIRECT_URI:http://localhost:8080/oauth/microsoft/callback}
+    app-return-url: ${APP_RETURN_URL:jimi://connected}
+    tenant: ${MICROSOFT_TENANT:common}
 
 logging:
   level:
