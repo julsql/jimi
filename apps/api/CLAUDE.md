@@ -20,10 +20,16 @@ CREATE is written directly (low-risk, reversible). EDIT/DELETE return
 touched after the user confirms via `POST /chat/confirm`, which acts on the
 recorded event ids **without re-consulting the LLM**. See `ChatService`.
 
-> Migration in progress (branch `feat/calendar-provider-architecture`): PR #1
-> landed the provider abstraction + confirmation flow with a stub (no provider
-> wired yet → every scheduling intent returns `NEEDS_CONNECTION`). OAuth +
-> `GoogleCalendarProvider` land in PR #2, then CalDAV and Microsoft.
+> Migration in progress: PR #1 landed the provider abstraction + confirmation
+> flow. PR #2 (branch `feat/google-oauth-provider`) adds OAuth account linking
+> (encrypted tokens, PKCE) + `GoogleCalendarProvider`, so Google users get a
+> live calendar. CalDAV (PR #3) and Microsoft (PR #4) come next, then the app.
+>
+> **OAuth/Google:** see `docs/google-calendar-setup.md`. Tokens are stored
+> AES-256-GCM encrypted (`TokenCipher`, key `TOKEN_ENCRYPTION_KEY`); only the
+> `calendar.events` scope is requested; no calendar content is persisted.
+> Endpoints: `GET /connect/google`, `GET /oauth/google/callback`,
+> `GET /connections`, `DELETE /connect/google`.
 
 ## Build / run
 

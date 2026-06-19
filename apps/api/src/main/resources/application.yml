@@ -35,6 +35,20 @@ llm:
   temperature: 0.2
   json-mode: true
 
+# Encryption key for OAuth tokens at rest (base64 32 bytes: openssl rand -base64 32).
+security:
+  token-encryption-key: ${TOKEN_ENCRYPTION_KEY:}
+
+# Google Calendar OAuth client. See docs/google-calendar-setup.md.
+# When client-id/secret are blank, calendar features stay disabled (NEEDS_CONNECTION).
+oauth:
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
+    redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/oauth/google/callback}
+    app-return-url: ${APP_RETURN_URL:jimi://connected}
+    scope: https://www.googleapis.com/auth/calendar.events
+
 logging:
   level:
     org:
