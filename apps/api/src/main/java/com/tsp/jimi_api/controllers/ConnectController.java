@@ -56,7 +56,9 @@ public class ConnectController {
 
     @Operation(summary = "Start linking the user's Google Calendar (redirects to Google consent).")
     @GetMapping("/connect/google")
-    public ResponseEntity<?> connectGoogle(@RequestParam("userId") final String userId) {
+    public ResponseEntity<?> connectGoogle(
+            @RequestParam("userId") final String userId,
+            @RequestParam(value = "returnUrl", required = false) final String returnUrl) {
         if (userId == null || userId.isBlank()) {
             return Shared.raiseError("Connect failed.", "Incorrect or missing user id.", LOGGER);
         }
@@ -65,7 +67,7 @@ public class ConnectController {
                     "Google OAuth is not configured on the server.", LOGGER);
         }
         return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(googleOAuth.authorizationUrl(userId)))
+                .location(URI.create(googleOAuth.authorizationUrl(userId, returnUrl)))
                 .build();
     }
 

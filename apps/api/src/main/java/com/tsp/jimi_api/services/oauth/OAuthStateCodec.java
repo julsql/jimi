@@ -37,16 +37,23 @@ public class OAuthStateCodec {
     public record IssuedState(String state, String codeChallenge) {
     }
 
-    /** What we recover on the callback. */
-    public record StatePayload(String userId, String codeVerifier) {
+    /**
+     * What we recover on the callback. {@code returnUrl} is the client-supplied
+     * URL to bounce back to once linked (native deep link or web origin); it may
+     * be null, in which case the server falls back to its configured default.
+     */
+    public record StatePayload(String userId, String codeVerifier, String returnUrl) {
     }
 
-    public IssuedState issue(final String userId) {
+    public IssuedState issue(final String userId, final String returnUrl) {
         String codeVerifier = randomUrlSafe();
         JSONObject payload = new JSONObject()
                 .put("uid", userId)
                 .put("cv", codeVerifier)
                 .put("ts", Instant.now().getEpochSecond());
+        if (returnUrl != null && !returnUrl.isBlank()) {
+            payload.put("ru", returnUrl);
+        }
         String state = cipher.encrypt(payload.toString());
         return new IssuedState(state, challengeFor(codeVerifier));
     }
@@ -57,7 +64,8 @@ public class OAuthStateCodec {
         if (Instant.now().getEpochSecond() - ts > MAX_AGE_SECONDS) {
             throw new IllegalStateException("OAuth state expired; please retry the connection.");
         }
-        return new StatePayload(payload.getString("uid"), payload.getString("cv"));
+        String returnUrl = payload.has("ru") ? payload.optString("ru", null) : null;
+        return new StatePayload(payload.getString("uid"), payload.getString("cv"), returnUrl);
     }
 
     private String randomUrlSafe() {

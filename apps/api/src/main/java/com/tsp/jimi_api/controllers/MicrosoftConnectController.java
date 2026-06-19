@@ -39,7 +39,9 @@ public class MicrosoftConnectController {
 
     @Operation(summary = "Start linking the user's Microsoft/Outlook calendar (redirects to Microsoft consent).")
     @GetMapping("/connect/microsoft")
-    public ResponseEntity<?> connect(@RequestParam("userId") final String userId) {
+    public ResponseEntity<?> connect(
+            @RequestParam("userId") final String userId,
+            @RequestParam(value = "returnUrl", required = false) final String returnUrl) {
         if (userId == null || userId.isBlank()) {
             return Shared.raiseError("Connect failed.", "Incorrect or missing user id.", LOGGER);
         }
@@ -48,7 +50,7 @@ public class MicrosoftConnectController {
                     "Microsoft OAuth is not configured on the server.", LOGGER);
         }
         return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(microsoftOAuth.authorizationUrl(userId)))
+                .location(URI.create(microsoftOAuth.authorizationUrl(userId, returnUrl)))
                 .build();
     }
 

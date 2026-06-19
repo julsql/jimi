@@ -15,20 +15,29 @@ class OAuthStateCodecTest {
     private final OAuthStateCodec codec = new OAuthStateCodec(cipher);
 
     @Test
-    void roundTripsUserIdAndCarriesThePkceVerifierStatelessly() {
-        OAuthStateCodec.IssuedState issued = codec.issue("user-42");
+    void roundTripsUserIdReturnUrlAndCarriesThePkceVerifierStatelessly() {
+        OAuthStateCodec.IssuedState issued = codec.issue("user-42", "https://jimi.julsql.fr/connected");
 
         OAuthStateCodec.StatePayload payload = codec.verify(issued.state());
 
         assertThat(payload.userId()).isEqualTo("user-42");
         assertThat(payload.codeVerifier()).isNotBlank();
+        assertThat(payload.returnUrl()).isEqualTo("https://jimi.julsql.fr/connected");
         // PKCE challenge must be URL-safe base64 (no +, /, =).
         assertThat(issued.codeChallenge()).doesNotContain("+", "/", "=");
     }
 
     @Test
+    void returnUrlIsOptional() {
+        OAuthStateCodec.StatePayload payload = codec.verify(codec.issue("user-42", null).state());
+
+        assertThat(payload.userId()).isEqualTo("user-42");
+        assertThat(payload.returnUrl()).isNull();
+    }
+
+    @Test
     void aTamperedStateIsRejected() {
-        OAuthStateCodec.IssuedState issued = codec.issue("user-42");
+        OAuthStateCodec.IssuedState issued = codec.issue("user-42", null);
         String tampered = issued.state().substring(1) + "A";
 
         assertThatThrownBy(() -> codec.verify(tampered)).isInstanceOf(RuntimeException.class);

@@ -19,23 +19,26 @@ public class MicrosoftOAuthService {
     private final OAuthStateCodec stateCodec;
     private final MicrosoftTokenClient tokenClient;
     private final CalendarAccountService accounts;
+    private final OAuthReturnPolicy returnPolicy;
 
     public MicrosoftOAuthService(final MicrosoftOAuthProperties props,
                                  final OAuthStateCodec stateCodec,
                                  final MicrosoftTokenClient tokenClient,
-                                 final CalendarAccountService accounts) {
+                                 final CalendarAccountService accounts,
+                                 final OAuthReturnPolicy returnPolicy) {
         this.props = props;
         this.stateCodec = stateCodec;
         this.tokenClient = tokenClient;
         this.accounts = accounts;
+        this.returnPolicy = returnPolicy;
     }
 
     public boolean isConfigured() {
         return props.isConfigured();
     }
 
-    public String authorizationUrl(final String userId) {
-        OAuthStateCodec.IssuedState issued = stateCodec.issue(userId);
+    public String authorizationUrl(final String userId, final String returnUrl) {
+        OAuthStateCodec.IssuedState issued = stateCodec.issue(userId, returnUrl);
         return UriComponentsBuilder.fromHttpUrl(props.getAuthUri())
                 .queryParam("client_id", props.getClientId())
                 .queryParam("redirect_uri", props.getRedirectUri())
@@ -54,13 +57,11 @@ public class MicrosoftOAuthService {
         TokenResponse tokens = tokenClient.exchangeCode(code, payload.codeVerifier());
         accounts.link(payload.userId(), MicrosoftTokenStore.MICROSOFT,
                 toGeneric(tokens), null);
-        return appReturn("connected");
+        return returnPolicy.resolve(payload.returnUrl(), props.getAppReturnUrl(), "connected");
     }
 
     public String appReturn(final String status) {
-        return UriComponentsBuilder.fromUriString(props.getAppReturnUrl())
-                .queryParam("status", status)
-                .build().toUriString();
+        return returnPolicy.resolve(null, props.getAppReturnUrl(), status);
     }
 
     // Adapts the Microsoft token record to the shared one CalendarAccountService

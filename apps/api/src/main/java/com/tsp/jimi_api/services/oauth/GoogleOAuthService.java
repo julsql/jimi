@@ -26,23 +26,26 @@ public class GoogleOAuthService {
     private final OAuthStateCodec stateCodec;
     private final GoogleTokenClient tokenClient;
     private final CalendarAccountService accounts;
+    private final OAuthReturnPolicy returnPolicy;
 
     public GoogleOAuthService(final GoogleOAuthProperties props,
                               final OAuthStateCodec stateCodec,
                               final GoogleTokenClient tokenClient,
-                              final CalendarAccountService accounts) {
+                              final CalendarAccountService accounts,
+                              final OAuthReturnPolicy returnPolicy) {
         this.props = props;
         this.stateCodec = stateCodec;
         this.tokenClient = tokenClient;
         this.accounts = accounts;
+        this.returnPolicy = returnPolicy;
     }
 
     public boolean isConfigured() {
         return props.isConfigured();
     }
 
-    public String authorizationUrl(final String userId) {
-        OAuthStateCodec.IssuedState issued = stateCodec.issue(userId);
+    public String authorizationUrl(final String userId, final String returnUrl) {
+        OAuthStateCodec.IssuedState issued = stateCodec.issue(userId, returnUrl);
         return UriComponentsBuilder.fromHttpUrl(props.getAuthUri())
                 .queryParam("client_id", props.getClientId())
                 .queryParam("redirect_uri", props.getRedirectUri())
@@ -72,12 +75,11 @@ public class GoogleOAuthService {
         // CRUD endpoints are fully covered by this scope.
         accounts.link(payload.userId(), CalendarAccountService.GOOGLE, tokens, null);
 
-        return appReturn("connected");
+        return returnPolicy.resolve(payload.returnUrl(), props.getAppReturnUrl(), "connected");
     }
 
+    /** Error/fallback return when there is no valid state (e.g. user denied). */
     public String appReturn(final String status) {
-        return UriComponentsBuilder.fromUriString(props.getAppReturnUrl())
-                .queryParam("status", status)
-                .build().toUriString();
+        return returnPolicy.resolve(null, props.getAppReturnUrl(), status);
     }
 }
