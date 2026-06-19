@@ -11,6 +11,7 @@ import com.tsp.jimi_api.records.ConfirmRequest;
 import com.tsp.jimi_api.records.EventDraft;
 import com.tsp.jimi_api.records.EventExtraction;
 import com.tsp.jimi_api.records.ProposedAction;
+import com.tsp.jimi_api.services.calendar.CalendarProvider;
 import com.tsp.jimi_api.services.calendar.CalendarService;
 import com.tsp.jimi_api.services.llm.LlmClient;
 import org.json.JSONObject;
@@ -25,22 +26,17 @@ import java.util.Optional;
 /**
  * Orchestrates one POST /chat round-trip (and POST /chat/confirm).
  *
- * <p>Flow:
- * <ol>
- *   <li>Resume any in-progress AWAITING_INFO draft if a conversationId is given.</li>
- *   <li>Append the new user message and ask the LLM to extract structured intent.</li>
- *   <li>If no calendar is connected → NEEDS_CONNECTION.</li>
- *   <li>CREATE: ask for missing fields, else write straight to the calendar
- *       (low-risk, fully reversible → no confirmation, keeps it fluid).</li>
- *   <li>EDIT/DELETE: resolve the target event(s) and return
- *       AWAITING_CONFIRMATION — the calendar is NOT touched until the user
- *       confirms via {@link #confirm}.</li>
- *   <li>GET: read the real calendar and summarise it (second LLM pass).</li>
- * </ol>
- *
- * <p>The LLM is deliberately kept out of the confirmation/execution path: it
- * proposes, the user disposes. {@link #confirm} acts only on the event ids the
- * user already saw, so the model can never silently change what gets executed.
+ * <p>Two modes, chosen by {@code request.calendarMode()}:
+ * <ul>
+ *   <li><b>legacy</b> (false — the default, what deployed apps send): events live
+ *       in JIMI's own DB ({@code LocalDbCalendarProvider}). CREATE/EDIT/DELETE
+ *       happen directly, no NEEDS_CONNECTION, no confirmation step — the
+ *       pre-pivot contract.</li>
+ *   <li><b>calendar</b> (true): acts on the user's connected calendar. If none is
+ *       connected → NEEDS_CONNECTION. EDIT/DELETE return AWAITING_CONFIRMATION
+ *       and only run after the user confirms via {@link #confirm} — the LLM is
+ *       never in the destructive execution path.</li>
+ * </ul>
  */
 @Service
 public class ChatService {
@@ -74,33 +70,39 @@ public class ChatService {
         String rawJson = llmClient.complete(Prompts.extraction(), history);
         EventExtraction extraction = new EventExtraction(rawJson);
         Categories category = extraction.getCategory();
+        boolean calendarMode = request.calendarMode();
 
-        LOGGER.info("[chat] userId={} category={} rawExtraction={}",
-                request.userId(), category, rawJson);
+        LOGGER.info("[chat] userId={} category={} calendarMode={} rawExtraction={}",
+                request.userId(), category, calendarMode, rawJson);
 
-        // OTHER never touches the calendar — answer and stop.
+        // OTHER never touches the agenda — answer and stop.
         if (category == Categories.OTHER) {
             conversationService.complete(existing);
             return completed(extraction.getResponse(), null);
         }
 
-        // Every scheduling intent needs a connected calendar.
-        if (!calendarService.isAnyConnected(request.userId())) {
+        // Calendar mode requires a connected external calendar; legacy mode uses
+        // the local DB and is always available.
+        if (calendarMode && !calendarService.hasExternalConnected(request.userId())) {
             return new ChatApiResponse(null, ConversationStatus.NEEDS_CONNECTION,
                     NEEDS_CONNECTION_MESSAGE, List.of());
         }
+        CalendarProvider provider = calendarService.resolveFor(request.userId(), calendarMode);
 
         return switch (category) {
-            case CREATE -> handleCreate(extraction, history, existing, request, rawJson);
-            case GET -> handleGet(extraction, request.userId(), existing);
-            case EDIT, DELETE -> handleDestructive(extraction, history, existing, request.userId());
+            case CREATE -> handleCreate(provider, extraction, history, existing, request, rawJson);
+            case GET -> handleGet(provider, extraction, request.userId(), existing);
+            case EDIT, DELETE -> calendarMode
+                    ? handleDestructiveWithConfirmation(provider, extraction, history, existing, request.userId())
+                    : handleDestructiveDirect(provider, extraction, request.userId(), existing);
             default -> completed(extraction.getResponse(), null);
         };
     }
 
     /**
-     * Executes (or declines) a previously proposed EDIT/DELETE. Reads the exact
-     * event ids the user confirmed — the LLM is not consulted here.
+     * Executes (or declines) a previously proposed EDIT/DELETE on a connected
+     * calendar. Reads the exact event ids the user confirmed — the LLM is not
+     * consulted here. Only reachable in calendar mode.
      */
     public ChatApiResponse confirm(final ConfirmRequest request) {
         Conversation pending = conversationService
@@ -113,7 +115,8 @@ public class ChatService {
         }
 
         ProposedAction action = ProposedAction.fromJson(pending.getDraftJson());
-        String eventUrl = execute(action, request.userId());
+        CalendarProvider provider = calendarService.resolveExternal(request.userId());
+        String eventUrl = execute(provider, action, request.userId());
         conversationService.complete(pending);
 
         String done = action.category() == Categories.DELETE
@@ -122,20 +125,20 @@ public class ChatService {
         return completed(done, eventUrl);
     }
 
-    private String execute(final ProposedAction action, final String userId) {
+    private String execute(final CalendarProvider provider, final ProposedAction action, final String userId) {
         String lastUrl = null;
         for (String eventId : action.eventIds()) {
             if (action.category() == Categories.DELETE) {
-                calendarService.delete(userId, eventId);
+                provider.delete(userId, eventId);
             } else {
-                CalendarEvent updated = calendarService.update(userId, eventId, action.changes());
-                lastUrl = updated.url();
+                lastUrl = provider.update(userId, eventId, action.changes()).url();
             }
         }
         return lastUrl;
     }
 
-    private ChatApiResponse handleCreate(final EventExtraction extraction,
+    private ChatApiResponse handleCreate(final CalendarProvider provider,
+                                         final EventExtraction extraction,
                                          final List<LlmClient.ChatMessage> history,
                                          final Conversation existing,
                                          final ChatApiRequest request,
@@ -148,16 +151,17 @@ public class ChatService {
                     extraction.getResponse(), missing);
         }
 
-        CalendarEvent created = calendarService.create(request.userId(), extraction.getNewValue());
+        CalendarEvent created = provider.create(request.userId(), extraction.getNewValue());
         conversationService.complete(existing);
         return completed(extraction.getResponse(), created.url());
     }
 
-    private ChatApiResponse handleGet(final EventExtraction extraction,
+    private ChatApiResponse handleGet(final CalendarProvider provider,
+                                      final EventExtraction extraction,
                                       final String userId,
                                       final Conversation existing) {
         conversationService.complete(existing);
-        List<CalendarEvent> events = calendarService.upcomingEvents(userId);
+        List<CalendarEvent> events = calendarService.upcomingEvents(provider, userId);
         if (events.isEmpty()) {
             return completed("You don't have any events scheduled. 🎉", null);
         }
@@ -165,14 +169,15 @@ public class ChatService {
     }
 
     /**
-     * Resolves the target event(s) for an EDIT/DELETE and asks the user to
-     * confirm. Nothing is written here.
+     * Calendar mode: resolve the target event(s) and ask the user to confirm.
+     * Nothing is written here.
      */
-    private ChatApiResponse handleDestructive(final EventExtraction extraction,
-                                              final List<LlmClient.ChatMessage> history,
-                                              final Conversation existing,
-                                              final String userId) {
-        List<CalendarEvent> matches = calendarService.matchEvents(userId, extraction.getOldValue());
+    private ChatApiResponse handleDestructiveWithConfirmation(final CalendarProvider provider,
+                                                              final EventExtraction extraction,
+                                                              final List<LlmClient.ChatMessage> history,
+                                                              final Conversation existing,
+                                                              final String userId) {
+        List<CalendarEvent> matches = calendarService.matchEvents(provider, userId, extraction.getOldValue());
 
         if (matches.isEmpty()) {
             return completed("I couldn't find a matching event. Could you tell me the "
@@ -192,6 +197,26 @@ public class ChatService {
         Conversation saved = conversationService.persistPendingAction(existing, userId, action, history);
         return new ChatApiResponse(saved.getId(), ConversationStatus.AWAITING_CONFIRMATION,
                 action.summary(), List.of(), target.url());
+    }
+
+    /**
+     * Legacy mode: edit/delete the matching event(s) in JIMI's own DB directly
+     * and return COMPLETED — the pre-pivot behaviour deployed apps expect.
+     */
+    private ChatApiResponse handleDestructiveDirect(final CalendarProvider provider,
+                                                    final EventExtraction extraction,
+                                                    final String userId,
+                                                    final Conversation existing) {
+        List<CalendarEvent> matches = calendarService.matchEvents(provider, userId, extraction.getOldValue());
+        for (CalendarEvent target : matches) {
+            if (extraction.getCategory() == Categories.DELETE) {
+                provider.delete(userId, target.id());
+            } else {
+                provider.update(userId, target.id(), extraction.getNewValue());
+            }
+        }
+        conversationService.complete(existing);
+        return completed(extraction.getResponse(), null);
     }
 
     private String disambiguation(final List<CalendarEvent> matches) {
@@ -218,8 +243,8 @@ public class ChatService {
     }
 
     /**
-     * Second LLM pass for GET: hand it the real events plus the question and
-     * ask for a friendly answer built only from those events.
+     * Second LLM pass for GET: hand it the events plus the question and ask for a
+     * friendly answer built only from those events.
      */
     private String summarise(final List<CalendarEvent> events, final String userQuestion) {
         StringBuilder block = new StringBuilder("My calendar events are:");

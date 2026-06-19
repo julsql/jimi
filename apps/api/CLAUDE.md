@@ -7,18 +7,27 @@ source of truth, this is just orientation.
 
 JIMI API is a Spring Boot 3 / Java 17 chatbot backend. The user posts a
 natural-language message; the API asks an LLM (default: **Mistral AI**, free
-tier, OpenAI-compatible) to extract structured intent and acts on the user's
-**own connected calendar** (Google primary, plus CalDAV and Microsoft) through
-the `CalendarProvider` abstraction. JIMI keeps **no copy of calendar events** —
-the calendar is the single source of truth. Multi-turn flows (missing info, or
-a pending edit/delete awaiting confirmation) are persisted server-side in a
+tier, OpenAI-compatible) to extract structured intent and acts on it through the
+`CalendarProvider` abstraction.
+
+**Two modes, chosen by `calendarMode` on the `/chat` request:**
+- **legacy** (`calendarMode=false` — the DEFAULT, and what already-deployed apps
+  send): events live in JIMI's own `agenda` table (`LocalDbCalendarProvider`).
+  CREATE/EDIT/DELETE happen directly, `GET /agenda` lists them — the pre-pivot
+  contract. No connection, no confirmation.
+- **calendar** (`calendarMode=true`): acts on the user's **connected** calendar
+  (Google primary, plus CalDAV / Microsoft). No local copy of events. If nothing
+  is connected → `NEEDS_CONNECTION`. EDIT/DELETE → `AWAITING_CONFIRMATION`.
+
+Multi-turn flows (missing info, or a pending edit/delete) are persisted in a
 `conversation` table and resumed via `conversationId`.
 
-**Safety model (non-negotiable):** the LLM never executes a destructive action.
-CREATE is written directly (low-risk, reversible). EDIT/DELETE return
-`AWAITING_CONFIRMATION` with the resolved target event(s); the calendar is only
-touched after the user confirms via `POST /chat/confirm`, which acts on the
-recorded event ids **without re-consulting the LLM**. See `ChatService`.
+**Safety model (calendar mode):** the LLM never executes a destructive action.
+CREATE is written directly. EDIT/DELETE return `AWAITING_CONFIRMATION`; the
+calendar is only touched after the user confirms via `POST /chat/confirm`, which
+acts on the recorded event ids **without re-consulting the LLM**. (Legacy mode
+keeps the old direct edit/delete, since deployed apps don't handle confirmation.)
+See `ChatService`.
 
 > Migration in progress (stacked PRs): PR #1 = provider abstraction +
 > confirmation flow. PR #2 (`feat/google-oauth-provider`) = OAuth linking +
