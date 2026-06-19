@@ -1,6 +1,8 @@
 package com.tsp.jimi_api.services.crypto;
 
 import com.tsp.jimi_api.configurations.CryptoProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -20,12 +22,16 @@ import java.util.Base64;
  * IV is generated per call, so encrypting the same token twice yields different
  * ciphertexts.
  *
- * <p>If no key is configured the bean still constructs (so the app boots
- * without OAuth set up), but any encrypt/decrypt call fails loudly — calendar
- * connection simply stays unavailable until {@code TOKEN_ENCRYPTION_KEY} is set.
+ * <p>If the key is missing OR invalid (bad base64 / wrong length) the bean still
+ * constructs (so the app boots and chat keeps working); encryption is simply
+ * disabled and any encrypt/decrypt call fails loudly, so calendar connection
+ * stays unavailable until a valid {@code TOKEN_ENCRYPTION_KEY} is set. A bad key
+ * must never take the whole API down.
  */
 @Component
 public class TokenCipher {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(TokenCipher.class);
 
     private static final String TRANSFORMATION = "AES/GCM/NoPadding";
     private static final int IV_LENGTH = 12;
@@ -100,11 +106,19 @@ public class TokenCipher {
         if (base64Key == null || base64Key.isBlank()) {
             return null;
         }
-        byte[] raw = Base64.getDecoder().decode(base64Key.trim());
-        if (raw.length != 16 && raw.length != 24 && raw.length != 32) {
-            throw new IllegalArgumentException(
-                    "TOKEN_ENCRYPTION_KEY must decode to 16, 24 or 32 bytes (got " + raw.length + ")");
+        try {
+            byte[] raw = Base64.getDecoder().decode(base64Key.trim());
+            if (raw.length != 16 && raw.length != 24 && raw.length != 32) {
+                LOGGER.error("TOKEN_ENCRYPTION_KEY must decode to 16/24/32 bytes (got {}); "
+                        + "calendar encryption disabled. Generate one with: openssl rand -base64 32",
+                        raw.length);
+                return null;
+            }
+            return new SecretKeySpec(raw, "AES");
+        } catch (IllegalArgumentException e) {
+            LOGGER.error("TOKEN_ENCRYPTION_KEY is not valid base64; calendar encryption disabled. "
+                    + "Generate one with: openssl rand -base64 32");
+            return null;
         }
-        return new SecretKeySpec(raw, "AES");
     }
 }

@@ -50,8 +50,13 @@ class TokenCipherTest {
     }
 
     @Test
-    void rejectsAWrongLengthKey() {
-        assertThatThrownBy(() -> new TokenCipher(Base64.getEncoder().encodeToString(new byte[7])))
-                .isInstanceOf(IllegalArgumentException.class);
+    void anInvalidKeyDisablesEncryptionRatherThanCrashing() {
+        // A bad key must never take the whole API down: degrade, don't throw.
+        TokenCipher wrongLength = new TokenCipher(Base64.getEncoder().encodeToString(new byte[7]));
+        assertThat(wrongLength.isConfigured()).isFalse();
+        assertThatThrownBy(() -> wrongLength.encrypt("x")).isInstanceOf(IllegalStateException.class);
+
+        TokenCipher notBase64 = new TokenCipher("not valid base64 !!!");
+        assertThat(notBase64.isConfigured()).isFalse();
     }
 }
