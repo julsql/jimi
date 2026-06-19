@@ -3,7 +3,9 @@ package com.tsp.jimi_api.services;
 import com.tsp.jimi_api.entities.Conversation;
 import com.tsp.jimi_api.enums.Categories;
 import com.tsp.jimi_api.enums.ConversationStatus;
+import com.tsp.jimi_api.records.EventDraft;
 import com.tsp.jimi_api.records.EventExtraction;
+import com.tsp.jimi_api.records.ProposedAction;
 import com.tsp.jimi_api.repositories.ConversationRepository;
 import com.tsp.jimi_api.services.llm.LlmClient;
 import org.json.JSONArray;
@@ -16,14 +18,14 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Manages multi-turn drafts that span more than one HTTP exchange.
+ * Manages multi-turn state that spans more than one HTTP exchange:
+ *   - incomplete CREATE drafts (waiting for missing fields), and
+ *   - destructive actions (EDIT/DELETE) waiting for the user to confirm.
  *
- * When the LLM cannot fully extract an event, we persist:
- *   - the partial draft (last LLM JSON output, so we can keep merging)
- *   - the raw conversation history (system + user + assistant)
- * keyed by a UUID we hand back to the frontend. On the next call the
- * frontend echoes that UUID; we re-load the history and append the new
- * user message before the next LLM call.
+ * State is keyed by a UUID handed back to the frontend. On the next call the
+ * frontend echoes that UUID; we re-load the history/draft to resume. No
+ * calendar content is ever stored here — only the user's own message history
+ * and the parameters of the action they are mid-way through.
  */
 @Service
 public class ConversationService {
@@ -35,10 +37,22 @@ public class ConversationService {
     }
 
     /**
-     * Loads a conversation for a given user, or returns empty if not found
-     * or owned by someone else (defensive multi-tenant check).
+     * Loads an in-progress (AWAITING_INFO) draft for a user, or empty.
      */
     public Optional<Conversation> load(final String conversationId, final String userId) {
+        return loadAny(conversationId, userId)
+                .filter(c -> c.getStatus() == ConversationStatus.AWAITING_INFO);
+    }
+
+    /**
+     * Loads a pending confirmation (AWAITING_CONFIRMATION) for a user, or empty.
+     */
+    public Optional<Conversation> loadPending(final String conversationId, final String userId) {
+        return loadAny(conversationId, userId)
+                .filter(c -> c.getStatus() == ConversationStatus.AWAITING_CONFIRMATION);
+    }
+
+    private Optional<Conversation> loadAny(final String conversationId, final String userId) {
         if (conversationId == null || conversationId.isBlank()) {
             return Optional.empty();
         }
@@ -55,8 +69,8 @@ public class ConversationService {
     }
 
     /**
-     * Persists a draft when more info is needed. Creates a new row when
-     * conversation is null, otherwise updates the existing one.
+     * Persists an incomplete CREATE draft. Creates a new row when conversation
+     * is null, otherwise updates the existing one.
      */
     public Conversation persistDraft(
             final Conversation existing,
@@ -81,49 +95,63 @@ public class ConversationService {
     }
 
     /**
-     * Marks a conversation as completed once the underlying agenda action
-     * has succeeded, so the frontend can drop its conversationId.
+     * Persists a destructive action awaiting explicit confirmation. The exact
+     * target event ids live inside {@code action} so execution can act on them
+     * without ever re-consulting the LLM.
+     */
+    public Conversation persistPendingAction(
+            final Conversation existing,
+            final String userId,
+            final ProposedAction action,
+            final List<LlmClient.ChatMessage> history) {
+
+        Conversation conversation = existing != null
+                ? existing
+                : new Conversation(UUID.randomUUID().toString(), userId);
+
+        conversation.setCategory(action.category());
+        conversation.setStatus(ConversationStatus.AWAITING_CONFIRMATION);
+        conversation.setDraftJson(action.toJson().toString());
+        conversation.setHistoryJson(serializeHistory(history));
+
+        return conversationRepository.save(conversation);
+    }
+
+    /**
+     * Marks a conversation as completed once its action has succeeded, so the
+     * frontend drops its conversationId.
      */
     public void complete(final Conversation conversation) {
+        setStatus(conversation, ConversationStatus.COMPLETED);
+    }
+
+    /**
+     * Marks a pending action as declined by the user; nothing was executed.
+     */
+    public void cancel(final Conversation conversation) {
+        setStatus(conversation, ConversationStatus.CANCELLED);
+    }
+
+    private void setStatus(final Conversation conversation, final ConversationStatus status) {
         if (conversation == null) {
             return;
         }
-        conversation.setStatus(ConversationStatus.COMPLETED);
+        conversation.setStatus(status);
         conversationRepository.save(conversation);
     }
 
     /**
-     * True when the LLM signalled the draft is still incomplete, OR when
-     * the category is CREATE and required event fields are unset.
-     *
-     * We trust the LLM's missing_fields list first, then double-check
-     * server-side for CREATE so a sloppy LLM can't slip through with a
-     * half-empty event.
-     */
-    public boolean needsMoreInfo(final EventExtraction extraction) {
-        return !computeMissingFields(extraction).isEmpty();
-    }
-
-    /**
-     * Authoritative list of missing fields exposed to the frontend.
-     *
-     * Combines:
-     *   - what the LLM flagged in "missing_fields"
-     *   - what the server detects on its own for CREATE (so a sloppy LLM that
-     *     forgets to flag the type can't slip a half-empty event through).
-     *
-     * The frontend uses this list to drive its UX (which input to focus,
-     * which question to render).
+     * Authoritative list of missing fields for a CREATE, combining the LLM's
+     * own "missing_fields" with a server-side check of the two hard
+     * requirements (title, start) so a sloppy LLM can't slip a half-empty
+     * event through.
      */
     public List<String> computeMissingFields(final EventExtraction extraction) {
         List<String> missing = new ArrayList<>(extraction.getMissingFields());
         if (extraction.getCategory() == Categories.CREATE) {
-            EventExtraction.EventData v = extraction.getNewValue();
-            addIfMissing(missing, "date", v.getDate() == null);
-            addIfMissing(missing, "begin_time", v.getBeginTime() == null);
-            addIfMissing(missing, "end_time", v.getEndTime() == null);
-            addIfMissing(missing, "title", v.getTitle() == null);
-            addIfMissing(missing, "type", v.getType() == null);
+            EventDraft v = extraction.getNewValue();
+            addIfMissing(missing, "title", isBlank(v.title()));
+            addIfMissing(missing, "start", isBlank(v.start()));
         }
         return missing;
     }
@@ -132,6 +160,10 @@ public class ConversationService {
         if (condition && !missing.contains(field)) {
             missing.add(field);
         }
+    }
+
+    private static boolean isBlank(final String s) {
+        return s == null || s.isBlank();
     }
 
     private List<LlmClient.ChatMessage> readHistory(final Conversation conversation) {

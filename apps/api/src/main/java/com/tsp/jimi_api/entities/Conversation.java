@@ -37,7 +37,7 @@ public class Conversation {
     private Categories category;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", length = 20, nullable = false)
+    @Column(name = "status", length = 30, nullable = false)
     private ConversationStatus status;
 
     @Lob

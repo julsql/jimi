@@ -7,9 +7,23 @@ source of truth, this is just orientation.
 
 JIMI API is a Spring Boot 3 / Java 17 chatbot backend. The user posts a
 natural-language message; the API asks an LLM (default: **Mistral AI**, free
-tier, OpenAI-compatible) to extract structured event data and CRUDs it on a
-MariaDB `agenda` table. Multi-turn flows (when info is missing) are persisted
-server-side in a `conversation` table and resumed via `conversationId`.
+tier, OpenAI-compatible) to extract structured intent and acts on the user's
+**own connected calendar** (Google primary, plus CalDAV and Microsoft) through
+the `CalendarProvider` abstraction. JIMI keeps **no copy of calendar events** —
+the calendar is the single source of truth. Multi-turn flows (missing info, or
+a pending edit/delete awaiting confirmation) are persisted server-side in a
+`conversation` table and resumed via `conversationId`.
+
+**Safety model (non-negotiable):** the LLM never executes a destructive action.
+CREATE is written directly (low-risk, reversible). EDIT/DELETE return
+`AWAITING_CONFIRMATION` with the resolved target event(s); the calendar is only
+touched after the user confirms via `POST /chat/confirm`, which acts on the
+recorded event ids **without re-consulting the LLM**. See `ChatService`.
+
+> Migration in progress (branch `feat/calendar-provider-architecture`): PR #1
+> landed the provider abstraction + confirmation flow with a stub (no provider
+> wired yet → every scheduling intent returns `NEEDS_CONNECTION`). OAuth +
+> `GoogleCalendarProvider` land in PR #2, then CalDAV and Microsoft.
 
 ## Build / run
 
