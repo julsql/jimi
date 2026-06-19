@@ -61,7 +61,10 @@ public class TokenCipher {
             byte[] out = new byte[iv.length + ct.length];
             System.arraycopy(iv, 0, out, 0, iv.length);
             System.arraycopy(ct, 0, out, iv.length, ct.length);
-            return Base64.getEncoder().encodeToString(out);
+            // URL-safe base64 (no '+' '/' '='): the OAuth state is carried in a
+            // URL, where a '+' would be decoded back as a space and corrupt the
+            // ciphertext, making decryption fail on the callback.
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(out);
         } catch (Exception e) {
             throw new IllegalStateException("Token encryption failed", e);
         }
@@ -72,7 +75,7 @@ public class TokenCipher {
             return null;
         }
         try {
-            byte[] all = Base64.getDecoder().decode(encoded);
+            byte[] all = Base64.getUrlDecoder().decode(encoded);
             byte[] iv = new byte[IV_LENGTH];
             System.arraycopy(all, 0, iv, 0, IV_LENGTH);
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);

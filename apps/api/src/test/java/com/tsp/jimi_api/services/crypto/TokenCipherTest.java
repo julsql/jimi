@@ -30,6 +30,18 @@ class TokenCipherTest {
     }
 
     @Test
+    void ciphertextIsUrlSafe_soItSurvivesTheOAuthStateRoundTrip() {
+        TokenCipher cipher = new TokenCipher(KEY);
+
+        // Encrypt enough payloads that a standard-base64 '+'/'/' would surely
+        // appear; URL-safe output must never contain '+', '/' or '='.
+        for (int i = 0; i < 50; i++) {
+            String encrypted = cipher.encrypt("payload-with-some-length-" + i);
+            assertThat(encrypted).doesNotContain("+", "/", "=");
+        }
+    }
+
+    @Test
     void withoutAKey_isNotConfiguredAndRefusesToEncrypt() {
         TokenCipher cipher = new TokenCipher("");
 
