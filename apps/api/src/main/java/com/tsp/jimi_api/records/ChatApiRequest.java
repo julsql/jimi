@@ -12,6 +12,11 @@ package com.tsp.jimi_api.records;
  *                       Absent/false (the default, and what already-deployed apps
  *                       send) keeps the legacy behaviour: events live in JIMI's
  *                       own DB and edit/delete happen directly.
+ * @param timezone       the user's IANA timezone (e.g. "Europe/Paris"), sent by
+ *                       the client from the device. Used to resolve "today"/"now"
+ *                       and as the default timezone for new events. Falls back to
+ *                       the server's zone when absent.
  */
-public record ChatApiRequest(String userId, String message, String conversationId, boolean calendarMode) {
+public record ChatApiRequest(String userId, String message, String conversationId,
+                             boolean calendarMode, String timezone) {
 }

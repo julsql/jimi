@@ -10,6 +10,7 @@ import com.tsp.jimi_api.services.calendar.local.LocalDbCalendarProvider;
 import com.tsp.jimi_api.support.FakeCalendarProvider;
 import com.tsp.jimi_api.support.FakeLlmClient;
 import com.tsp.jimi_api.support.InMemoryAgendaRepository;
+import com.tsp.jimi_api.support.InMemoryChatContextRepository;
 import com.tsp.jimi_api.support.InMemoryConversationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,17 +41,17 @@ class ChatServiceTest {
         agendaRepo = new InMemoryAgendaRepository();
         local = new LocalDbCalendarProvider(agendaRepo);
         CalendarService calendarService = new CalendarService(List.of(external, local), local);
-        ConversationService conversationService =
-                new ConversationService(new InMemoryConversationRepository());
+        ConversationService conversationService = new ConversationService(
+                new InMemoryConversationRepository(), new InMemoryChatContextRepository());
         chatService = new ChatService(llm, conversationService, calendarService);
     }
 
     private ChatApiResponse send(final String message) {
-        return chatService.handle(new ChatApiRequest("u1", message, null, true));
+        return chatService.handle(new ChatApiRequest("u1", message, null, true, "Europe/Paris"));
     }
 
     private ChatApiResponse sendLegacy(final String message) {
-        return chatService.handle(new ChatApiRequest("u1", message, null, false));
+        return chatService.handle(new ChatApiRequest("u1", message, null, false, "Europe/Paris"));
     }
 
     // ----- calendar mode -----------------------------------------------------
@@ -147,6 +148,24 @@ class ChatServiceTest {
         assertThat(response.status()).isEqualTo(ConversationStatus.COMPLETED);
         assertThat(agendaRepo.count()).isEqualTo(1);
         assertThat(external.created).isEmpty();
+    }
+
+    @Test
+    void remembersRecentContextAcrossTurns() {
+        llm.enqueue("""
+                { "category": "OTHER", "response": "Bonjour ! 👋", "language": "fr" }
+                """);
+        sendLegacy("bonjour");
+
+        llm.enqueue("""
+                { "category": "OTHER", "response": "Et voici la suite.", "language": "fr" }
+                """);
+        sendLegacy("et la suite ?");
+
+        // The 2nd turn's prompt history carries the 1st turn (user + assistant)
+        // plus the new message — so follow-ups like "delete it" have context.
+        assertThat(llm.lastHistory).hasSizeGreaterThanOrEqualTo(3);
+        assertThat(llm.lastHistory.get(0).content()).isEqualTo("bonjour");
     }
 
     @Test

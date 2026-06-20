@@ -1,6 +1,7 @@
 package com.tsp.jimi_api.services;
 
 import com.tsp.jimi_api.repositories.AgendaRepository;
+import com.tsp.jimi_api.repositories.ChatContextRepository;
 import com.tsp.jimi_api.repositories.ConversationRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,13 +18,16 @@ public class UserService {
 
     private final AgendaRepository agendaRepository;
     private final ConversationRepository conversationRepository;
+    private final ChatContextRepository chatContextRepository;
     private final CalendarAccountService calendarAccountService;
 
     public UserService(final AgendaRepository agendaRepository,
                        final ConversationRepository conversationRepository,
+                       final ChatContextRepository chatContextRepository,
                        final CalendarAccountService calendarAccountService) {
         this.agendaRepository = agendaRepository;
         this.conversationRepository = conversationRepository;
+        this.chatContextRepository = chatContextRepository;
         this.calendarAccountService = calendarAccountService;
     }
 
@@ -36,6 +40,7 @@ public class UserService {
         int agenda = agendaRepository.deleteByUserId(userId);
         int accounts = calendarAccountService.unlinkAll(userId);
         int conversations = conversationRepository.deleteByUserId(userId);
-        return agenda + accounts + conversations;
+        int context = chatContextRepository.deleteByUserId(userId);
+        return agenda + accounts + conversations + context;
     }
 }

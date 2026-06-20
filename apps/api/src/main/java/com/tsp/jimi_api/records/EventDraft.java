@@ -58,6 +58,19 @@ public record EventDraft(
         return Boolean.TRUE.equals(allDay);
     }
 
+    /**
+     * Returns a copy with {@code timezone} set to {@code defaultZone} when the
+     * LLM didn't extract one — so a new event lands in the user's own timezone
+     * rather than the server's.
+     */
+    public EventDraft withDefaultTimezone(final String defaultZone) {
+        if (timezone != null || defaultZone == null || defaultZone.isBlank()) {
+            return this;
+        }
+        return new EventDraft(title, start, end, allDay, defaultZone, location,
+                attendees, description, recurrence, reminderMinutes, type);
+    }
+
     public boolean isEmpty() {
         return title == null && start == null && end == null && allDay == null
                 && timezone == null && location == null && attendees.isEmpty()

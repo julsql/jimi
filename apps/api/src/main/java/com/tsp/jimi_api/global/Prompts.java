@@ -1,8 +1,7 @@
 package com.tsp.jimi_api.global;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
 /**
  * System prompts used to steer the LLM.
@@ -25,7 +24,8 @@ public final class Prompts {
      * recurrence, reminder) so JIMI can write a complete event to the user's
      * real calendar.
      */
-    public static String extraction() {
+    public static String extraction(final ZoneId zone) {
+        ZonedDateTime now = ZonedDateTime.now(zone);
         return """
                 You are Jimi, a friendly schedule assistant. You help the user manage
                 events directly on THEIR OWN connected calendar (Google, Apple/CalDAV,
@@ -82,7 +82,8 @@ public final class Prompts {
                   "old_value":      { ...event fields... } or {},
                   "new_value":      { ...event fields... } or {},
                   "missing_fields": ["title","start",...] or [],
-                  "response":       "your friendly reply to the user"
+                  "response":       "your friendly reply to the user",
+                  "language":       "ISO-639-1 code of the user's message, e.g. 'fr','en','es'"
                 }
 
                 Each event field block accepts (include ONLY fields the user gave):
@@ -119,8 +120,12 @@ public final class Prompts {
                 - "response" is the only field shown to the user. Be warm, concise,
                   light emoji ok. When asking for missing info, ask only for what's
                   missing.
+                - LANGUAGE: write "response" in the SAME language as the user's latest
+                  message (French → French, Spanish → Spanish, etc.), and set
+                  "language" to that language's ISO-639-1 code. Default to "en" only
+                  if the language is genuinely unclear.
                 - Reply with valid JSON only. No prose outside the JSON object.
-                """.formatted(LocalDate.now(), LocalTime.now(), ZoneId.systemDefault());
+                """.formatted(now.toLocalDate(), now.toLocalTime(), zone);
     }
 
     /**
@@ -129,7 +134,8 @@ public final class Prompts {
      * Returns {"answer": "..."} so the service can hand the user a clean
      * human-readable summary built only from the supplied events.
      */
-    public static String agendaSummary() {
+    public static String agendaSummary(final ZoneId zone) {
+        ZonedDateTime now = ZonedDateTime.now(zone);
         return """
                 You are Jimi, a friendly schedule assistant. The user asked about
                 their calendar and you have just been given the relevant events in the
@@ -151,12 +157,13 @@ public final class Prompts {
                     but the day must be identical.
 
                 Use the events to answer the user's latest question politely and
-                completely — do not skip any relevant event.
+                completely — do not skip any relevant event. Write "answer" in the
+                SAME language as the user's question (French → French, etc.).
 
                 Reply with a single JSON object exactly:
                 {
                   "answer": "..."
                 }
-                """.formatted(LocalDate.now(), LocalTime.now());
+                """.formatted(now.toLocalDate(), now.toLocalTime());
     }
 }

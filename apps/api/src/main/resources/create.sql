@@ -5,6 +5,7 @@
 DROP TABLE IF EXISTS agenda;
 DROP TABLE IF EXISTS conversation;
 DROP TABLE IF EXISTS calendar_account;
+DROP TABLE IF EXISTS chat_context;
 
 CREATE TABLE agenda (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -26,6 +27,12 @@ CREATE TABLE conversation (
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     INDEX idx_conversation_user (user_id)
+);
+
+CREATE TABLE chat_context (
+    user_id VARCHAR(255) PRIMARY KEY,
+    history_json TEXT,
+    updated_at TIMESTAMP NOT NULL
 );
 
 CREATE TABLE calendar_account (

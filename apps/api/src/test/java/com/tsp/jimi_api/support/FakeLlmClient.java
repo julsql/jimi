@@ -14,6 +14,9 @@ public class FakeLlmClient implements LlmClient {
 
     private final Deque<String> replies = new ArrayDeque<>();
 
+    /** The history passed on the most recent call (for asserting context replay). */
+    public List<ChatMessage> lastHistory = List.of();
+
     public FakeLlmClient enqueue(final String reply) {
         replies.add(reply);
         return this;
@@ -21,6 +24,7 @@ public class FakeLlmClient implements LlmClient {
 
     @Override
     public String complete(final String systemPrompt, final List<ChatMessage> history) {
+        this.lastHistory = List.copyOf(history);
         if (replies.isEmpty()) {
             throw new IllegalStateException("FakeLlmClient: no scripted reply left");
         }

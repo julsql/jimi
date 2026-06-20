@@ -22,12 +22,15 @@ import java.util.List;
  * @param eventIds  the exact provider event ids that will be affected
  * @param changes   field changes to apply (EDIT only; ignored for DELETE)
  * @param summary   the human-readable description shown to the user to confirm
+ * @param language  ISO-639-1 code, so {@code /chat/confirm} can reply in the
+ *                  same language the user used when the action was proposed
  */
 public record ProposedAction(
         Categories category,
         List<String> eventIds,
         EventDraft changes,
-        String summary) {
+        String summary,
+        String language) {
 
     public ProposedAction {
         eventIds = eventIds == null ? List.of() : List.copyOf(eventIds);
@@ -39,6 +42,7 @@ public record ProposedAction(
         json.put("eventIds", new JSONArray(eventIds));
         json.put("changes", changes == null ? new JSONObject() : changes.toJson());
         json.put("summary", summary);
+        json.put("language", language == null ? "en" : language);
         return json;
     }
 
@@ -55,6 +59,7 @@ public record ProposedAction(
                 Categories.valueOf(json.getString("category")),
                 ids,
                 EventDraft.parse(json.optJSONObject("changes")),
-                json.optString("summary", ""));
+                json.optString("summary", ""),
+                json.optString("language", "en"));
     }
 }

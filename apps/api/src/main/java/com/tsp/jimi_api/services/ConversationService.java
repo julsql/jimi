@@ -1,11 +1,13 @@
 package com.tsp.jimi_api.services;
 
+import com.tsp.jimi_api.entities.ChatContext;
 import com.tsp.jimi_api.entities.Conversation;
 import com.tsp.jimi_api.enums.Categories;
 import com.tsp.jimi_api.enums.ConversationStatus;
 import com.tsp.jimi_api.records.EventDraft;
 import com.tsp.jimi_api.records.EventExtraction;
 import com.tsp.jimi_api.records.ProposedAction;
+import com.tsp.jimi_api.repositories.ChatContextRepository;
 import com.tsp.jimi_api.repositories.ConversationRepository;
 import com.tsp.jimi_api.services.llm.LlmClient;
 import org.json.JSONArray;
@@ -30,10 +32,43 @@ import java.util.UUID;
 @Service
 public class ConversationService {
 
-    private final ConversationRepository conversationRepository;
+    /** How many recent messages of rolling context to keep/replay per user. */
+    private static final int CONTEXT_WINDOW = 10;
 
-    public ConversationService(final ConversationRepository conversationRepository) {
+    private final ConversationRepository conversationRepository;
+    private final ChatContextRepository chatContextRepository;
+
+    public ConversationService(final ConversationRepository conversationRepository,
+                               final ChatContextRepository chatContextRepository) {
         this.conversationRepository = conversationRepository;
+        this.chatContextRepository = chatContextRepository;
+    }
+
+    /**
+     * The user's rolling conversation memory (recent turns), so the LLM keeps
+     * the thread across messages. Returns a mutable, possibly empty list.
+     */
+    public List<LlmClient.ChatMessage> loadContext(final String userId) {
+        return chatContextRepository.findById(userId)
+                .map(c -> deserializeHistory(c.getHistoryJson()))
+                .orElseGet(ArrayList::new);
+    }
+
+    /**
+     * Appends the latest (user, assistant) exchange to the user's rolling memory,
+     * trimmed to the most recent {@link #CONTEXT_WINDOW} messages.
+     */
+    public void recordContext(final String userId, final String userMessage,
+                              final String assistantMessage) {
+        List<LlmClient.ChatMessage> history = loadContext(userId);
+        history.add(new LlmClient.ChatMessage("user", userMessage));
+        history.add(new LlmClient.ChatMessage("assistant", assistantMessage));
+        if (history.size() > CONTEXT_WINDOW) {
+            history = new ArrayList<>(history.subList(history.size() - CONTEXT_WINDOW, history.size()));
+        }
+        ChatContext context = chatContextRepository.findById(userId).orElseGet(() -> new ChatContext(userId));
+        context.setHistoryJson(serializeHistory(history));
+        chatContextRepository.save(context);
     }
 
     /**
@@ -167,11 +202,18 @@ public class ConversationService {
     }
 
     private List<LlmClient.ChatMessage> readHistory(final Conversation conversation) {
+        if (conversation == null) {
+            return new ArrayList<>();
+        }
+        return deserializeHistory(conversation.getHistoryJson());
+    }
+
+    private List<LlmClient.ChatMessage> deserializeHistory(final String historyJson) {
         List<LlmClient.ChatMessage> history = new ArrayList<>();
-        if (conversation == null || conversation.getHistoryJson() == null) {
+        if (historyJson == null || historyJson.isBlank()) {
             return history;
         }
-        JSONArray array = new JSONArray(conversation.getHistoryJson());
+        JSONArray array = new JSONArray(historyJson);
         for (int i = 0; i < array.length(); i++) {
             JSONObject item = array.getJSONObject(i);
             history.add(new LlmClient.ChatMessage(item.getString("role"), item.getString("content")));

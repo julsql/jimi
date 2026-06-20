@@ -27,12 +27,14 @@ public class EventExtraction {
     private EventDraft newValue;
     private final List<String> missingFields = new ArrayList<>();
     private String response;
+    private String language = "en";
 
     public EventExtraction(final String jsonString) {
         try {
             JSONObject json = new JSONObject(jsonString);
             this.category = parseCategory(json.optString("category", "OTHER"));
             this.response = json.optString("response", "");
+            this.language = normalizeLanguage(json.optString("language", "en"));
             this.oldValue = EventDraft.parse(json.optJSONObject("old_value"));
             this.newValue = EventDraft.parse(json.optJSONObject("new_value"));
 
@@ -48,6 +50,16 @@ public class EventExtraction {
             this.oldValue = EventDraft.empty();
             this.newValue = EventDraft.empty();
         }
+    }
+
+    private static String normalizeLanguage(final String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "en";
+        }
+        String code = raw.trim().toLowerCase(java.util.Locale.ROOT);
+        // Keep only the primary subtag ("fr-FR" → "fr").
+        int dash = code.indexOf('-');
+        return dash > 0 ? code.substring(0, dash) : code;
     }
 
     private static Categories parseCategory(final String raw) {
@@ -76,6 +88,11 @@ public class EventExtraction {
 
     public List<String> getMissingFields() {
         return missingFields;
+    }
+
+    /** ISO-639-1 language code of the user's message (e.g. "fr"); "en" by default. */
+    public String getLanguage() {
+        return language;
     }
 
     public String getResponse() {
