@@ -23,9 +23,11 @@ public final class Messages {
         NO_EVENTS,
         NO_MATCH,
         MULTIPLE_MATCHES,
-        DELETE_CONFIRM,     // arg: event description
-        UPDATE_CONFIRM,     // arg: event description
-        UPDATE_DETAILS,     // arg: changes
+        DELETE_CONFIRM,       // arg: event description
+        DELETE_CONFIRM_MANY,  // arg: count (events listed after)
+        UPDATE_CONFIRM,       // arg: event description
+        UPDATE_CONFIRM_MANY,  // arg: count
+        UPDATE_DETAILS,       // arg: changes
         CANCELLED,
         DELETED,
         UPDATED
@@ -60,7 +62,9 @@ public final class Messages {
                 + "so I'm sure I act on the right one?");
         m.put(Key.MULTIPLE_MATCHES, "I found several matching events. Which one do you mean?");
         m.put(Key.DELETE_CONFIRM, "Delete %s? This can't be undone.");
+        m.put(Key.DELETE_CONFIRM_MANY, "Delete these %d events? This can't be undone.");
         m.put(Key.UPDATE_CONFIRM, "Update %s?");
+        m.put(Key.UPDATE_CONFIRM_MANY, "Update these %d events?");
         m.put(Key.UPDATE_DETAILS, "New details: %s");
         m.put(Key.CANCELLED, "Okay, I won't make any changes. ✅");
         m.put(Key.DELETED, "Done — I've removed it from your calendar. 🗑️");
@@ -77,7 +81,9 @@ public final class Messages {
                 + "ou la date pour être sûr d'agir sur le bon ?");
         m.put(Key.MULTIPLE_MATCHES, "J'ai trouvé plusieurs événements correspondants. Lequel veux-tu ?");
         m.put(Key.DELETE_CONFIRM, "Supprimer %s ? C'est irréversible.");
+        m.put(Key.DELETE_CONFIRM_MANY, "Supprimer ces %d événements ? C'est irréversible.");
         m.put(Key.UPDATE_CONFIRM, "Modifier %s ?");
+        m.put(Key.UPDATE_CONFIRM_MANY, "Modifier ces %d événements ?");
         m.put(Key.UPDATE_DETAILS, "Nouveaux détails : %s");
         m.put(Key.CANCELLED, "D'accord, je ne change rien. ✅");
         m.put(Key.DELETED, "C'est fait — je l'ai retiré de ton calendrier. 🗑️");

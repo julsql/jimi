@@ -204,21 +204,22 @@ public class ChatService {
         if (matches.isEmpty()) {
             return completed(Messages.get(lang, Messages.Key.NO_MATCH), null);
         }
-        if (matches.size() > 1) {
-            return completed(disambiguation(lang, matches), null);
-        }
 
-        CalendarEvent target = matches.get(0);
+        // Confirm over ALL matched events in one go (so "delete them"/"both"
+        // works). The user sees every event listed and confirms once; execution
+        // acts on exactly these ids.
+        List<String> eventIds = matches.stream().map(CalendarEvent::id).toList();
         ProposedAction action = new ProposedAction(
                 extraction.getCategory(),
-                List.of(target.id()),
+                eventIds,
                 extraction.getNewValue(),
-                summariseAction(lang, extraction.getCategory(), target, extraction.getNewValue()),
+                summariseAction(lang, extraction.getCategory(), matches, extraction.getNewValue()),
                 lang);
 
         Conversation saved = conversationService.persistPendingAction(existing, userId, action, history);
+        String eventUrl = matches.size() == 1 ? matches.get(0).url() : null;
         return new ChatApiResponse(saved.getId(), ConversationStatus.AWAITING_CONFIRMATION,
-                action.summary(), List.of(), target.url());
+                action.summary(), List.of(), eventUrl);
     }
 
     /**
@@ -243,23 +244,34 @@ public class ChatService {
         return completed(extraction.getResponse(), null);
     }
 
-    private String disambiguation(final String lang, final List<CalendarEvent> matches) {
-        StringBuilder sb = new StringBuilder(Messages.get(lang, Messages.Key.MULTIPLE_MATCHES)).append("\n");
-        for (CalendarEvent e : matches) {
-            sb.append("\n- ").append(e.describe());
-        }
-        return sb.toString();
-    }
-
+    /**
+     * Confirmation prompt for one OR several target events. For a single event
+     * it names it; for several it states the count and lists them, so the user
+     * sees exactly what they're confirming.
+     */
     private String summariseAction(final String lang, final Categories category,
-                                   final CalendarEvent target, final EventDraft changes) {
+                                   final List<CalendarEvent> targets, final EventDraft changes) {
+        boolean single = targets.size() == 1;
+        StringBuilder sb = new StringBuilder();
         if (category == Categories.DELETE) {
-            return Messages.get(lang, Messages.Key.DELETE_CONFIRM, target.describe());
+            sb.append(single
+                    ? Messages.get(lang, Messages.Key.DELETE_CONFIRM, targets.get(0).describe())
+                    : Messages.get(lang, Messages.Key.DELETE_CONFIRM_MANY, targets.size()));
+        } else {
+            sb.append(single
+                    ? Messages.get(lang, Messages.Key.UPDATE_CONFIRM, targets.get(0).describe())
+                    : Messages.get(lang, Messages.Key.UPDATE_CONFIRM_MANY, targets.size()));
         }
-        StringBuilder sb = new StringBuilder(Messages.get(lang, Messages.Key.UPDATE_CONFIRM, target.describe()));
-        JSONObject diff = changes == null ? new JSONObject() : changes.toJson();
-        if (diff.length() != 0) {
-            sb.append("\n").append(Messages.get(lang, Messages.Key.UPDATE_DETAILS, diff.toString()));
+        if (!single) {
+            for (CalendarEvent e : targets) {
+                sb.append("\n- ").append(e.describe());
+            }
+        }
+        if (category != Categories.DELETE) {
+            JSONObject diff = changes == null ? new JSONObject() : changes.toJson();
+            if (diff.length() != 0) {
+                sb.append("\n").append(Messages.get(lang, Messages.Key.UPDATE_DETAILS, diff.toString()));
+            }
         }
         return sb.toString();
     }

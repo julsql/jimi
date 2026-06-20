@@ -120,6 +120,29 @@ class ChatServiceTest {
     }
 
     @Test
+    void deletingSeveralMatches_confirmsAllAtOnce_thenRemovesThemAll() {
+        external.events = List.of(
+                new CalendarEvent("evt-1", "Call Alex", "2026-06-20T13:00",
+                        null, false, null, List.of(), null, null, "url/evt-1"),
+                new CalendarEvent("evt-2", "Meeting", "2026-06-20T17:00",
+                        null, false, null, List.of(), null, null, "url/evt-2"));
+        llm.enqueue("""
+                { "category": "DELETE", "old_value": {"start": "2026-06-20"}, "response": "Ok" }
+                """);
+
+        ChatApiResponse proposal = send("delete today's events");
+
+        assertThat(proposal.status()).isEqualTo(ConversationStatus.AWAITING_CONFIRMATION);
+        assertThat(proposal.message()).contains("2").contains("Call Alex").contains("Meeting");
+        assertThat(external.deleted).isEmpty(); // nothing yet
+
+        ChatApiResponse done = chatService.confirm(new ConfirmRequest("u1", proposal.conversationId(), true));
+
+        assertThat(done.status()).isEqualTo(ConversationStatus.COMPLETED);
+        assertThat(external.deleted).containsExactlyInAnyOrder("evt-1", "evt-2");
+    }
+
+    @Test
     void decliningDelete_executesNothing() {
         external.events = List.of(new CalendarEvent("evt-9", "Dentist", "2026-06-20T09:00",
                 null, false, null, List.of(), null, null, "url/evt-9"));
