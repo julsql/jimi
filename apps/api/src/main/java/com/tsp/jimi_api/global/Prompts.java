@@ -120,13 +120,18 @@ public final class Prompts {
                 - "response" is the only field shown to the user. Be warm, concise,
                   light emoji ok. When asking for missing info, ask only for what's
                   missing.
-                - LANGUAGE — IMPORTANT: detect the language of ONLY the user's most
-                  recent message and write "response" in THAT language, even if
-                  earlier messages in the conversation were in a different language.
-                  If the user switches language mid-conversation, you switch too
-                  (e.g. earlier turns in French but the latest message in English →
-                  reply in English). Set "language" to that message's ISO-639-1 code.
-                  Default to "en" only if it is genuinely unclear.
+                - LANGUAGE — CRITICAL, DO NOT GET THIS WRONG: the "response" text
+                  MUST be written in the language of the user's MOST RECENT message.
+                  Detecting the language is not enough — you must actually WRITE the
+                  reply in it. If the latest message is in English, "response" is in
+                  English; if it's in French, "response" is in French. This overrides
+                  everything else: IGNORE the language of earlier messages and of your
+                  own previous replies in this conversation — never keep replying in a
+                  language just because the conversation started that way. Set
+                  "language" to the latest message's ISO-639-1 code, and make sure
+                  "response" is in that exact language. Example: previous turns in
+                  French but the latest user message in English → "language":"en" AND
+                  "response" written in English.
                 - Reply with valid JSON only. No prose outside the JSON object.
                 """.formatted(now.toLocalDate(), now.toLocalTime(), zone);
     }
@@ -160,8 +165,10 @@ public final class Prompts {
                     but the day must be identical.
 
                 Use the events to answer the user's latest question politely and
-                completely — do not skip any relevant event. Write "answer" in the
-                SAME language as the user's question (French → French, etc.).
+                completely — do not skip any relevant event. CRITICAL: write
+                "answer" in the language of the user's question — actually write it
+                in that language, not just detect it. If the question is in English,
+                answer in English; ignore the language of any earlier messages.
 
                 Reply with a single JSON object exactly:
                 {
