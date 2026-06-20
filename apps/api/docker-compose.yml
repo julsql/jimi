@@ -65,6 +65,12 @@ services:
       MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
       MICROSOFT_REDIRECT_URI: ${MICROSOFT_REDIRECT_URI:-}
       MICROSOFT_TENANT: ${MICROSOFT_TENANT:-common}
+      # Data retention — scheduled purge of inactive users + old conversation
+      # memory. Days are inactivity windows; cron is server-local time.
+      RETENTION_ENABLED: ${RETENTION_ENABLED:-true}
+      RETENTION_USER_DAYS: ${RETENTION_USER_DAYS:-180}
+      RETENTION_CONTEXT_DAYS: ${RETENTION_CONTEXT_DAYS:-3}
+      RETENTION_CRON: "${RETENTION_CRON:-0 30 3 * * *}"
     ports:
       - "127.0.0.1:${API_PORT:-8102}:8080"
 
