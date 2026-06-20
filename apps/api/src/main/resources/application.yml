@@ -57,6 +57,15 @@ oauth:
     app-return-url: ${APP_RETURN_URL:jimi://connected}
     tenant: ${MICROSOFT_TENANT:common}
 
+# Data retention — a scheduled job purges inactive users (and all their data,
+# revoking calendar tokens) and old conversation memory. Set retention.enabled
+# to false to disable. Days are inactivity windows.
+retention:
+  enabled: ${RETENTION_ENABLED:true}
+  user-days: ${RETENTION_USER_DAYS:180}
+  context-days: ${RETENTION_CONTEXT_DAYS:30}
+  cron: ${RETENTION_CRON:0 30 3 * * *}
+
 logging:
   level:
     org:

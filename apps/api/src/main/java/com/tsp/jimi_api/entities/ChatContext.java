@@ -65,4 +65,8 @@ public class ChatContext {
     public Instant getUpdatedAt() {
         return updatedAt;
     }
+
+    public void setUpdatedAt(final Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
 }

@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS agenda;
 DROP TABLE IF EXISTS conversation;
 DROP TABLE IF EXISTS calendar_account;
 DROP TABLE IF EXISTS chat_context;
+DROP TABLE IF EXISTS app_user;
 
 CREATE TABLE agenda (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -33,6 +34,13 @@ CREATE TABLE chat_context (
     user_id VARCHAR(255) PRIMARY KEY,
     history_json TEXT,
     updated_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE app_user (
+    user_id VARCHAR(255) PRIMARY KEY,
+    first_seen_at TIMESTAMP NOT NULL,
+    last_seen_at TIMESTAMP NOT NULL,
+    INDEX idx_app_user_last_seen (last_seen_at)
 );
 
 CREATE TABLE calendar_account (

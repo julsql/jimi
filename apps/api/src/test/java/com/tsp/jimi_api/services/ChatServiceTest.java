@@ -10,6 +10,7 @@ import com.tsp.jimi_api.services.calendar.local.LocalDbCalendarProvider;
 import com.tsp.jimi_api.support.FakeCalendarProvider;
 import com.tsp.jimi_api.support.FakeLlmClient;
 import com.tsp.jimi_api.support.InMemoryAgendaRepository;
+import com.tsp.jimi_api.support.InMemoryAppUserRepository;
 import com.tsp.jimi_api.support.InMemoryChatContextRepository;
 import com.tsp.jimi_api.support.InMemoryConversationRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +44,8 @@ class ChatServiceTest {
         CalendarService calendarService = new CalendarService(List.of(external, local), local);
         ConversationService conversationService = new ConversationService(
                 new InMemoryConversationRepository(), new InMemoryChatContextRepository());
-        chatService = new ChatService(llm, conversationService, calendarService);
+        UserActivityService activity = new UserActivityService(new InMemoryAppUserRepository());
+        chatService = new ChatService(llm, conversationService, calendarService, activity);
     }
 
     private ChatApiResponse send(final String message) {

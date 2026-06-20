@@ -45,16 +45,20 @@ public class ChatService {
     private final LlmClient llmClient;
     private final ConversationService conversationService;
     private final CalendarService calendarService;
+    private final UserActivityService userActivityService;
 
     public ChatService(final LlmClient llmClient,
                        final ConversationService conversationService,
-                       final CalendarService calendarService) {
+                       final CalendarService calendarService,
+                       final UserActivityService userActivityService) {
         this.llmClient = llmClient;
         this.conversationService = conversationService;
         this.calendarService = calendarService;
+        this.userActivityService = userActivityService;
     }
 
     public ChatApiResponse handle(final ChatApiRequest request) {
+        userActivityService.touch(request.userId());
         ZoneId zone = zoneOf(request.timezone());
 
         Conversation existing = conversationService
@@ -119,6 +123,7 @@ public class ChatService {
      * consulted here. Only reachable in calendar mode.
      */
     public ChatApiResponse confirm(final ConfirmRequest request) {
+        userActivityService.touch(request.userId());
         Conversation pending = conversationService
                 .loadPending(request.conversationId(), request.userId())
                 .orElseThrow(() -> new IllegalStateException("No pending action to confirm."));

@@ -1,19 +1,26 @@
 package com.tsp.jimi_api.support;
 
-import com.tsp.jimi_api.entities.ChatContext;
-import com.tsp.jimi_api.repositories.ChatContextRepository;
+import com.tsp.jimi_api.entities.AppUser;
+import com.tsp.jimi_api.repositories.AppUserRepository;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 /**
- * Map-backed {@link ChatContextRepository} for tests (rolling per-user memory).
+ * Map-backed {@link AppUserRepository} for tests.
  */
-public class InMemoryChatContextRepository implements ChatContextRepository {
+public class InMemoryAppUserRepository implements AppUserRepository {
 
-    private final Map<String, ChatContext> store = new LinkedHashMap<>();
+    private final Map<String, AppUser> store = new LinkedHashMap<>();
+
+    @Override
+    public List<AppUser> findByLastSeenAtBefore(final Instant threshold) {
+        return store.values().stream().filter(u -> u.getLastSeenAt().isBefore(threshold)).toList();
+    }
 
     @Override
     public int deleteByUserId(final String userId) {
@@ -21,20 +28,13 @@ public class InMemoryChatContextRepository implements ChatContextRepository {
     }
 
     @Override
-    public int deleteByUpdatedAtBefore(final java.time.Instant threshold) {
-        int before = store.size();
-        store.values().removeIf(c -> c.getUpdatedAt() != null && c.getUpdatedAt().isBefore(threshold));
-        return before - store.size();
-    }
-
-    @Override
-    public <S extends ChatContext> S save(final S entity) {
+    public <S extends AppUser> S save(final S entity) {
         store.put(entity.getUserId(), entity);
         return entity;
     }
 
     @Override
-    public Optional<ChatContext> findById(final String userId) {
+    public Optional<AppUser> findById(final String userId) {
         return Optional.ofNullable(store.get(userId));
     }
 
@@ -54,24 +54,24 @@ public class InMemoryChatContextRepository implements ChatContextRepository {
     }
 
     @Override
-    public void delete(final ChatContext entity) {
+    public void delete(final AppUser entity) {
         store.remove(entity.getUserId());
     }
 
     @Override
-    public Iterable<ChatContext> findAll() {
+    public Iterable<AppUser> findAll() {
         return new ArrayList<>(store.values());
     }
 
     @Override
-    public <S extends ChatContext> Iterable<S> saveAll(final Iterable<S> entities) {
-        java.util.List<S> out = new ArrayList<>();
+    public <S extends AppUser> Iterable<S> saveAll(final Iterable<S> entities) {
+        List<S> out = new ArrayList<>();
         entities.forEach(e -> out.add(save(e)));
         return out;
     }
 
     @Override
-    public Iterable<ChatContext> findAllById(final Iterable<String> ids) {
+    public Iterable<AppUser> findAllById(final Iterable<String> ids) {
         throw new UnsupportedOperationException();
     }
 
@@ -81,7 +81,7 @@ public class InMemoryChatContextRepository implements ChatContextRepository {
     }
 
     @Override
-    public void deleteAll(final Iterable<? extends ChatContext> entities) {
+    public void deleteAll(final Iterable<? extends AppUser> entities) {
         throw new UnsupportedOperationException();
     }
 

@@ -2,12 +2,14 @@ package com.tsp.jimi_api;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * The type Jimi api application.
  */
 // CHECKSTYLE:OFF
 @SpringBootApplication
+@EnableScheduling
 public class JimiApiApplication {
 // CHECKSTYLE:ON
 
