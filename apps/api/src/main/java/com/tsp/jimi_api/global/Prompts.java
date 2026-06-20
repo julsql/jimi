@@ -120,10 +120,13 @@ public final class Prompts {
                 - "response" is the only field shown to the user. Be warm, concise,
                   light emoji ok. When asking for missing info, ask only for what's
                   missing.
-                - LANGUAGE: write "response" in the SAME language as the user's latest
-                  message (French → French, Spanish → Spanish, etc.), and set
-                  "language" to that language's ISO-639-1 code. Default to "en" only
-                  if the language is genuinely unclear.
+                - LANGUAGE — IMPORTANT: detect the language of ONLY the user's most
+                  recent message and write "response" in THAT language, even if
+                  earlier messages in the conversation were in a different language.
+                  If the user switches language mid-conversation, you switch too
+                  (e.g. earlier turns in French but the latest message in English →
+                  reply in English). Set "language" to that message's ISO-639-1 code.
+                  Default to "en" only if it is genuinely unclear.
                 - Reply with valid JSON only. No prose outside the JSON object.
                 """.formatted(now.toLocalDate(), now.toLocalTime(), zone);
     }
