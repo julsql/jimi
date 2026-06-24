@@ -1,6 +1,11 @@
 # Server
 server:
   port: 8080
+  # Behind the host nginx (TLS terminated there, proxied as http to loopback).
+  # Honour X-Forwarded-Proto/Host so generated URLs — incl. Swagger's "Try it
+  # out" target and OAuth redirects — use https instead of http (otherwise
+  # Swagger hits http://…/config, gets a 301, and the browser fails the fetch).
+  forward-headers-strategy: framework
   servlet:
     encoding:
       charset: UTF-8
