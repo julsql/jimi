@@ -65,6 +65,11 @@ services:
       MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
       MICROSOFT_REDIRECT_URI: ${MICROSOFT_REDIRECT_URI:-}
       MICROSOFT_TENANT: ${MICROSOFT_TENANT:-common}
+      # Calendar provider deploy-time toggles — flip one to false + redeploy to
+      # pull that option from the app (GET /config + /connect guard). Default on.
+      GOOGLE_CALENDAR_ENABLED: ${GOOGLE_CALENDAR_ENABLED:-true}
+      MICROSOFT_CALENDAR_ENABLED: ${MICROSOFT_CALENDAR_ENABLED:-true}
+      CALDAV_CALENDAR_ENABLED: ${CALDAV_CALENDAR_ENABLED:-true}
       # Data retention — scheduled purge of inactive users + old conversation
       # memory. Days are inactivity windows; cron is server-local time.
       RETENTION_ENABLED: ${RETENTION_ENABLED:-true}
