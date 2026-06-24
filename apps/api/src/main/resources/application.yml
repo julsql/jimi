@@ -39,6 +39,15 @@ llm:
 security:
   token-encryption-key: ${TOKEN_ENCRYPTION_KEY:}
 
+# Calendar provider deploy-time toggles. Flip one to false + redeploy to pull
+# that option from the app (GET /config stops advertising it and /connect/<p>
+# refuses links) without shipping a new app build. Default: all enabled.
+calendar:
+  providers:
+    google: ${GOOGLE_CALENDAR_ENABLED:true}
+    microsoft: ${MICROSOFT_CALENDAR_ENABLED:true}
+    caldav: ${CALDAV_CALENDAR_ENABLED:true}
+
 # Google Calendar OAuth client. See docs/google-calendar-setup.md.
 # When client-id/secret are blank, calendar features stay disabled (NEEDS_CONNECTION).
 oauth:

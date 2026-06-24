@@ -2,6 +2,7 @@ package com.tsp.jimi_api.controllers;
 
 import com.tsp.jimi_api.global.Shared;
 import com.tsp.jimi_api.services.CalendarAccountService;
+import com.tsp.jimi_api.services.CalendarProviderAvailability;
 import com.tsp.jimi_api.services.calendar.microsoft.MicrosoftTokenStore;
 import com.tsp.jimi_api.services.oauth.MicrosoftOAuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,11 +31,14 @@ public class MicrosoftConnectController {
 
     private final MicrosoftOAuthService microsoftOAuth;
     private final CalendarAccountService accounts;
+    private final CalendarProviderAvailability availability;
 
     public MicrosoftConnectController(final MicrosoftOAuthService microsoftOAuth,
-                                      final CalendarAccountService accounts) {
+                                      final CalendarAccountService accounts,
+                                      final CalendarProviderAvailability availability) {
         this.microsoftOAuth = microsoftOAuth;
         this.accounts = accounts;
+        this.availability = availability;
     }
 
     @Operation(summary = "Start linking the user's Microsoft/Outlook calendar (redirects to Microsoft consent).")
@@ -45,9 +49,10 @@ public class MicrosoftConnectController {
         if (userId == null || userId.isBlank()) {
             return Shared.raiseError("Connect failed.", "Incorrect or missing user id.", LOGGER);
         }
-        if (!microsoftOAuth.isConfigured()) {
+        if (!availability.microsoftAvailable()) {
             return Shared.raiseError("Connect failed.",
-                    "Microsoft OAuth is not configured on the server.", LOGGER);
+                    "Microsoft Calendar is unavailable (disabled or not configured on the server).",
+                    LOGGER);
         }
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create(microsoftOAuth.authorizationUrl(userId, returnUrl)))

@@ -3,6 +3,7 @@ package com.tsp.jimi_api.controllers;
 import com.tsp.jimi_api.global.Shared;
 import com.tsp.jimi_api.records.CalDavConnectRequest;
 import com.tsp.jimi_api.services.CalendarAccountService;
+import com.tsp.jimi_api.services.CalendarProviderAvailability;
 import com.tsp.jimi_api.services.calendar.caldav.CalDavAccountService;
 import com.tsp.jimi_api.services.calendar.caldav.CalDavClient;
 import com.tsp.jimi_api.services.calendar.caldav.CalDavCredentials;
@@ -43,15 +44,18 @@ public class ConnectController {
     private final CalendarAccountService accounts;
     private final CalDavAccountService calDavAccounts;
     private final CalDavClient calDavClient;
+    private final CalendarProviderAvailability availability;
 
     public ConnectController(final GoogleOAuthService googleOAuth,
                              final CalendarAccountService accounts,
                              final CalDavAccountService calDavAccounts,
-                             final CalDavClient calDavClient) {
+                             final CalDavClient calDavClient,
+                             final CalendarProviderAvailability availability) {
         this.googleOAuth = googleOAuth;
         this.accounts = accounts;
         this.calDavAccounts = calDavAccounts;
         this.calDavClient = calDavClient;
+        this.availability = availability;
     }
 
     @Operation(summary = "Start linking the user's Google Calendar (redirects to Google consent).")
@@ -62,9 +66,10 @@ public class ConnectController {
         if (userId == null || userId.isBlank()) {
             return Shared.raiseError("Connect failed.", "Incorrect or missing user id.", LOGGER);
         }
-        if (!googleOAuth.isConfigured()) {
+        if (!availability.googleAvailable()) {
             return Shared.raiseError("Connect failed.",
-                    "Google OAuth is not configured on the server.", LOGGER);
+                    "Google Calendar is unavailable (disabled or not configured on the server).",
+                    LOGGER);
         }
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create(googleOAuth.authorizationUrl(userId, returnUrl)))
@@ -116,6 +121,10 @@ public class ConnectController {
     public ResponseEntity<?> connectCalDav(@RequestBody final CalDavConnectRequest request) {
         if (request == null || isBlank(request.userId())) {
             return Shared.raiseError("Connect failed.", "Incorrect or missing user id.", LOGGER);
+        }
+        if (!availability.caldavAvailable()) {
+            return Shared.raiseError("Connect failed.",
+                    "CalDAV calendars are disabled on the server.", LOGGER);
         }
         if (isBlank(request.serverUrl()) || isBlank(request.username()) || isBlank(request.password())) {
             return Shared.raiseError("Connect failed.",
