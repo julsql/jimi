@@ -46,6 +46,12 @@ llm:
 security:
   token-encryption-key: ${TOKEN_ENCRYPTION_KEY:}
 
+# Admin token guarding the announcement write endpoints (POST/DELETE
+# /admin/announcement). Sent by the caller as the X-Admin-Token header. When
+# blank, those endpoints are disabled (403) — GET /announcement stays public.
+admin:
+  token: ${ADMIN_TOKEN:}
+
 # Calendar provider deploy-time toggles. Flip one to false + redeploy to pull
 # that option from the app (GET /config stops advertising it and /connect/<p>
 # refuses links) without shipping a new app build. Default: all enabled.
