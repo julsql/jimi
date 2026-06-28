@@ -7,6 +7,7 @@ DROP TABLE IF EXISTS conversation;
 DROP TABLE IF EXISTS calendar_account;
 DROP TABLE IF EXISTS chat_context;
 DROP TABLE IF EXISTS app_user;
+DROP TABLE IF EXISTS announcement;
 
 CREATE TABLE agenda (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -41,6 +42,15 @@ CREATE TABLE app_user (
     first_seen_at TIMESTAMP NOT NULL,
     last_seen_at TIMESTAMP NOT NULL,
     INDEX idx_app_user_last_seen (last_seen_at)
+);
+
+CREATE TABLE announcement (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    message TEXT NOT NULL,
+    level VARCHAR(10) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL,
+    INDEX idx_announcement_active_created (active, created_at)
 );
 
 CREATE TABLE calendar_account (
