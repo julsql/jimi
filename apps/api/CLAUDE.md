@@ -72,7 +72,7 @@ See `ChatService`.
 ./mvnw -DskipTests compile        # quick check
 ./mvnw -DskipTests package        # produces target/jimi-api.jar
 ./run.sh                          # local run — sources .env then mvnw spring-boot:run
-docker compose up -d --build      # full stack (api + MariaDB) — see Dockerfile + docker-compose.yml
+docker compose -f docker-compose.db.yml up -d   # local MariaDB only (run the jar/./run.sh alongside)
 ```
 
 Required env vars to actually start: `DB_PASSWORD`, `MISTRAL_API_KEY` (or
@@ -82,25 +82,25 @@ Required env vars to actually start: `DB_PASSWORD`, `MISTRAL_API_KEY` (or
 `mvn` and `./mvnw` are interchangeable; the wrapper just pins a Maven version
 for reproducibility.
 
-## Deployment model (2-stack, registry-free)
+## Deployment model (k3s + GHCR + Keel)
 
 The api is deployed **independently from the web frontend** — the
-Android client and the browser both consume `jimi-api.julsql.fr`, so
-the API stack must stand on its own.
+Android client and the browser both consume the same public API URL,
+so the API stack stands on its own.
 
-`docker-compose.yml` here runs `api` + `db`:
+Flow (fully automated, no SSH):
 
-- The api binds to `127.0.0.1:${API_PORT:-8102}:8080` — never public.
-  The host's nginx reverse-proxies `jimi-api.julsql.fr` onto that
-  loopback port (drop-in vhost in `../jimi_app/infra/nginx/`).
-- The db has no host port mapping at all — only `api` reaches it via
-  the docker bridge network. Use `docker-compose.db.yml` for ad-hoc
-  dev access.
+- Push to `main` runs `.github/workflows/docker.yml`, which builds the
+  image and pushes it to **GHCR** (`ghcr.io/<owner>/jimi-api`, tagged
+  `latest` + commit SHA).
+- **Keel** polls GHCR from inside the cluster and rolls out the
+  Deployment automatically when the `latest` digest changes.
+- The k8s manifests (Deployment / Service / Ingress / secrets) live in
+  the **`k3s-manifests`** repo, not here — that's where env vars, the
+  public host and TLS are configured.
 
-**No registry pulls of JIMI-specific images.** Only generic upstream
-images are fetched (`mariadb:11`, `maven:3.9-eclipse-temurin-17`,
-`eclipse-temurin:17-jre`). The api image is rebuilt locally from
-source on every deploy (`docker compose up -d --build`).
+For local dev, `docker-compose.db.yml` still spins up a throwaway
+MariaDB (see the Build/run section).
 
 ## Architecture (modernised 2026-04)
 

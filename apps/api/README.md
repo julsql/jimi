@@ -268,78 +268,21 @@ alone.
 
 ## Deployment
 
-The API is deployed independently from the frontend (the Android
-client and the browser both hit the same public API URL). Runtime
-stack: `docker-compose.yml` (api + db). The api is bound to
-`127.0.0.1:${API_PORT:-8102}` and the host's nginx reverse-proxies
-`jimi-api.julsql.fr` onto that loopback port. The db has no host
-port — it's only reachable through the docker bridge network.
+The API runs on **k3s**, deployed independently from the frontend
+(the Android client and the browser both hit the same public API
+URL). Deployment is fully automated — no SSH, no manual steps:
 
-Only generic upstream images are pulled (`mariadb:11`,
-`maven:3.9-eclipse-temurin-17`, `eclipse-temurin:17-jre`). The api
-image is rebuilt from source on every deploy.
+1. Push to `main` (or trigger it manually) runs
+   [`.github/workflows/docker.yml`](.github/workflows/docker.yml),
+   which builds the Docker image and pushes it to **GHCR**
+   (`ghcr.io/<owner>/jimi-api`), tagged `latest` + the commit SHA.
+2. **Keel** runs in the cluster and polls GHCR. When the `latest`
+   digest changes it rolls out the new image automatically.
 
-### One-time host setup
-
-```bash
-git clone https://github.com/<owner>/jimi_api.git /opt/jimi_api
-cd /opt/jimi_api
-
-cat > .env <<EOF
-MISTRAL_API_KEY=...
-API_PORT=8102
-EOF
-
-# Drop the host nginx vhost (lives in the sibling repo)
-sudo cp /path/to/jimi_app/infra/nginx/jimi-api.julsql.fr.conf /etc/nginx/conf.d/
-sudo certbot --nginx -d jimi-api.julsql.fr
-sudo nginx -s reload
-```
-
-The user that runs `docker compose` must be in the `docker` group.
-
-### Deploy with GitHub Actions
-
-`.github/workflows/deploy.yml` runs on every push to `main` and on
-manual dispatch. Configure these repository secrets
-(*Settings → Secrets and variables → Actions*):
-
-| Secret        | Example         |
-|---------------|-----------------|
-| `SSH_HOST`    | `your.server`   |
-| `SSH_USER`    | `deploy`        |
-| `SSH_KEY`     | the SSH **private** key authorized on the server |
-| `DEPLOY_PATH` | `/opt/jimi_api` |
-
-The workflow SSHes onto the server and runs:
-
-```bash
-cd $DEPLOY_PATH
-git pull
-docker compose down
-docker compose build --no-cache
-docker compose up -d
-docker image prune -f
-```
-
-### Deploy manually
-
-Same five commands, packaged in `deploy.sh`:
-
-```bash
-DEPLOY_HOST=deploy@your.server \
-DEPLOY_PATH=/opt/jimi_api \
-./deploy.sh
-```
-
-Or by hand:
-
-```bash
-ssh deploy@your.server
-cd /opt/jimi_api
-git pull
-docker compose up -d --build
-```
+The k8s manifests (Deployment, Service, Ingress, secrets) live in the
+**`k3s-manifests`** repo, not here. Configuration that used to sit in
+the prod compose (env vars, the public host, TLS) is now expressed
+there.
 
 ## License
 
