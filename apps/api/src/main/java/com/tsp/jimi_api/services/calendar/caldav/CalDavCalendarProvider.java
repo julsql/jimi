@@ -10,8 +10,6 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * {@link CalendarProvider} backed by any CalDAV server (Apple iCloud, Fastmail,
@@ -30,10 +28,8 @@ import java.util.regex.Pattern;
 @Component
 public class CalDavCalendarProvider implements CalendarProvider {
 
-    /** Pulls each <calendar-data> blob out of a multistatus REPORT response. */
-    private static final Pattern CALENDAR_DATA = Pattern.compile(
-            "<(?:[A-Za-z0-9]+:)?calendar-data[^>]*>(.*?)</(?:[A-Za-z0-9]+:)?calendar-data>",
-            Pattern.DOTALL);
+    /** Local name of the CalDAV element carrying each iCalendar blob. */
+    private static final String CALENDAR_DATA = "calendar-data";
 
     private final CalDavAccountService accounts;
     private final CalDavClient client;
@@ -85,20 +81,130 @@ public class CalDavCalendarProvider implements CalendarProvider {
 
     // --- helpers -----------------------------------------------------------
 
-    /** Extracts and unescapes every VEVENT from a multistatus REPORT body. */
+    /**
+     * Extracts and unescapes every VEVENT from a multistatus REPORT body.
+     *
+     * <p>This used to rely on the regex
+     * {@code <(?:[A-Za-z0-9]+:)?calendar-data[^>]*>(.*?)</(?:[A-Za-z0-9]+:)?calendar-data>}.
+     * That pattern is vulnerable to polynomial ReDoS (CodeQL
+     * {@code java/polynomial-redos}): {@code xml} comes straight off the wire
+     * from the (user-configured) CalDAV server, and a body made of many
+     * {@code <calendar-data} fragments with no terminating {@code >} forces the
+     * engine to rescan the tail from every start position — O(n²) work.
+     *
+     * <p>The scanner below does the same job with a single linear forward pass
+     * using {@link String#indexOf} plus constant-size boundary checks. There is
+     * no backtracking and no regex, so matching is strictly O(n) and cannot be
+     * driven super-linear by hostile input.
+     */
     List<CalendarEvent> parseReport(final String xml) {
         List<CalendarEvent> events = new ArrayList<>();
         if (xml == null) {
             return events;
         }
-        Matcher m = CALENDAR_DATA.matcher(xml);
-        while (m.find()) {
-            String ical = unescapeXml(m.group(1)).trim();
+        int cursor = 0;
+        while (cursor < xml.length()) {
+            // Start of the content right after a "<[prefix:]calendar-data ...>" tag.
+            int contentStart = openTagContentStart(xml, cursor);
+            if (contentStart < 0) {
+                break;
+            }
+            // Its matching "</[prefix:]calendar-data>" closing tag.
+            int closeTagStart = closeTagStart(xml, contentStart);
+            if (closeTagStart < 0) {
+                break;
+            }
+            String ical = unescapeXml(xml.substring(contentStart, closeTagStart)).trim();
             if (ical.contains("BEGIN:VEVENT")) {
                 events.add(CalDavICalMapper.toCalendarEvent(ical));
             }
+            int closeEnd = xml.indexOf('>', closeTagStart);
+            if (closeEnd < 0) {
+                break;
+            }
+            cursor = closeEnd + 1;
         }
         return events;
+    }
+
+    /**
+     * Index of the first character after the next opening tag
+     * {@code <[A-Za-z0-9]+:?calendar-data[^>]*>} at or after {@code from}, or
+     * {@code -1} if there is none. Linear forward scan, no backtracking.
+     */
+    private static int openTagContentStart(final String xml, final int from) {
+        for (int i = xml.indexOf(CALENDAR_DATA, from); i >= 0;
+                i = xml.indexOf(CALENDAR_DATA, i + CALENDAR_DATA.length())) {
+            if (openTagLeftBoundary(xml, i) >= 0) {
+                int gt = xml.indexOf('>', i + CALENDAR_DATA.length());
+                // No '>' ahead means no complete tag can follow either: stop.
+                return gt < 0 ? -1 : gt + 1;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Index of the {@code '<'} of the next closing tag
+     * {@code </[A-Za-z0-9]+:?calendar-data>} at or after {@code from}, or
+     * {@code -1}. Linear forward scan, no backtracking.
+     */
+    private static int closeTagStart(final String xml, final int from) {
+        for (int i = xml.indexOf(CALENDAR_DATA, from); i >= 0;
+                i = xml.indexOf(CALENDAR_DATA, i + CALENDAR_DATA.length())) {
+            int after = i + CALENDAR_DATA.length();
+            if (after < xml.length() && xml.charAt(after) == '>') {
+                int lt = closeTagLeftBoundary(xml, i);
+                if (lt >= 0) {
+                    return lt;
+                }
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * If {@code calendar-data} at {@code dataIdx} is preceded by {@code '<'} or
+     * {@code "<[A-Za-z0-9]+:"}, returns the index of that {@code '<'}; else -1.
+     */
+    private static int openTagLeftBoundary(final String xml, final int dataIdx) {
+        if (dataIdx >= 1 && xml.charAt(dataIdx - 1) == '<') {
+            return dataIdx - 1;
+        }
+        if (dataIdx >= 2 && xml.charAt(dataIdx - 1) == ':') {
+            int j = dataIdx - 2;
+            while (j >= 0 && isAlnum(xml.charAt(j))) {
+                j--;
+            }
+            if (j < dataIdx - 2 && j >= 0 && xml.charAt(j) == '<') {
+                return j;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * If {@code calendar-data} at {@code dataIdx} is preceded by {@code "</"} or
+     * {@code "</[A-Za-z0-9]+:"}, returns the index of that {@code '<'}; else -1.
+     */
+    private static int closeTagLeftBoundary(final String xml, final int dataIdx) {
+        if (dataIdx >= 2 && xml.charAt(dataIdx - 1) == '/' && xml.charAt(dataIdx - 2) == '<') {
+            return dataIdx - 2;
+        }
+        if (dataIdx >= 4 && xml.charAt(dataIdx - 1) == ':') {
+            int j = dataIdx - 2;
+            while (j >= 0 && isAlnum(xml.charAt(j))) {
+                j--;
+            }
+            if (j < dataIdx - 2 && j >= 1 && xml.charAt(j) == '/' && xml.charAt(j - 1) == '<') {
+                return j - 1;
+            }
+        }
+        return -1;
+    }
+
+    private static boolean isAlnum(final char c) {
+        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
     }
 
     /** CalDAV time-range bounds must be UTC "yyyyMMdd'T'HHmmss'Z'". */

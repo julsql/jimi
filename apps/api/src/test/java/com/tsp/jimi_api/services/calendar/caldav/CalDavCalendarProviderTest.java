@@ -56,4 +56,32 @@ class CalDavCalendarProviderTest {
         assertThat(provider.parseReport(null)).isEmpty();
         assertThat(provider.parseReport("<d:multistatus/>")).isEmpty();
     }
+
+    @Test
+    void parsesTagsWithoutNamespacePrefix() {
+        String xml = "<calendar-data>BEGIN:VCALENDAR\n"
+                + "BEGIN:VEVENT\nUID:x\nSUMMARY:NoPrefix\nEND:VEVENT\n"
+                + "END:VCALENDAR</calendar-data>";
+
+        List<CalendarEvent> events = provider.parseReport(xml);
+
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).id()).isEqualTo("x");
+        assertThat(events.get(0).title()).isEqualTo("NoPrefix");
+    }
+
+    @Test
+    void handlesRedosPayloadInLinearTime() {
+        // A hostile body made of many "<calendar-data" fragments with no closing
+        // '>' used to trigger O(n^2) backtracking (CodeQL java/polynomial-redos).
+        // The linear scanner must return promptly with no events.
+        String payload = "<calendar-data".repeat(200_000);
+
+        long start = System.nanoTime();
+        List<CalendarEvent> events = provider.parseReport(payload);
+        long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+
+        assertThat(events).isEmpty();
+        assertThat(elapsedMs).isLessThan(1_000);
+    }
 }
