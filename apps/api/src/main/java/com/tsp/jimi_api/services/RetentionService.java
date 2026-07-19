@@ -4,6 +4,7 @@ import com.tsp.jimi_api.configurations.RetentionProperties;
 import com.tsp.jimi_api.entities.AppUser;
 import com.tsp.jimi_api.repositories.AppUserRepository;
 import com.tsp.jimi_api.repositories.ChatContextRepository;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -45,6 +46,7 @@ public class RetentionService {
     }
 
     @Scheduled(cron = "${retention.cron:0 30 3 * * *}")
+    @SchedulerLock(name = "retentionPurge", lockAtMostFor = "PT10M", lockAtLeastFor = "PT1M")
     public void purge() {
         if (!properties.isEnabled()) {
             return;

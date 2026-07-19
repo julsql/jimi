@@ -22,7 +22,9 @@ spring:
     defer-datasource-initialization: true
   sql:
     init:
-      mode: never
+      # "always" pour creer la table shedlock au demarrage (schema.sql).
+      # ddl-auto=update ne la genere pas (ce n'est pas une entite JPA).
+      mode: always
   jpa:
     hibernate:
       ddl-auto: update

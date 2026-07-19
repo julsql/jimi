@@ -276,8 +276,8 @@ URL). Deployment is fully automated — no SSH, no manual steps:
    [`.github/workflows/docker.yml`](.github/workflows/docker.yml),
    which builds the Docker image and pushes it to **GHCR**
    (`ghcr.io/<owner>/jimi-api`), tagged `latest` + the commit SHA.
-2. **Keel** runs in the cluster and polls GHCR. When the `latest`
-   digest changes it rolls out the new image automatically.
+2. The CI then pings the server (Keel webhook), which updates its
+   pods automatically.
 
 The k8s manifests (Deployment, Service, Ingress, secrets) live in the
 **`k3s-manifests`** repo, not here. Configuration that used to sit in
