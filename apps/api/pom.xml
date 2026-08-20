@@ -24,6 +24,8 @@
         <commons-lang3.version>3.18.0</commons-lang3.version>
         <!-- Override du BOM Spring Boot : jackson fourni en 2.21.4, on force 2.21.5 (jackson-databind advisory) -->
         <jackson-bom.version>2.21.5</jackson-bom.version>
+        <!-- Override du BOM Spring Boot : log4j fourni en 2.25.4, on force 2.25.5 (log4j-api advisory) -->
+        <log4j2.version>2.25.5</log4j2.version>
     </properties>
 
 
