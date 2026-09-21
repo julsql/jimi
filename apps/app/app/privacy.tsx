@@ -1,0 +1,481 @@
+import { useEffect, useState } from 'react';
+import { Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Redirect } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppBar } from '../components/AppBar';
+import { fetchRetentionInfo, RetentionInfo } from '../api/retentionInfo';
+import {
+  colors,
+  layout,
+  radius,
+  shadow,
+  spacing,
+  typography,
+} from '../theme/styles';
+
+// Web-only page. Native clients (iOS / Android) shouldn't surface a privacy
+// policy from inside the app — they get one from their respective stores.
+// If a deep link or refresh lands here on mobile, send the user back home.
+const isWeb = Platform.OS === 'web';
+
+const LAST_UPDATED = 'June 25, 2026';
+const CONTACT_EMAIL = 'contact@jimi.julsql.fr';
+
+interface SectionProps {
+  eyebrow: string;
+  title: string;
+  children: React.ReactNode;
+}
+
+function Section({ eyebrow, title, children }: SectionProps) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.eyebrow}>{eyebrow}</Text>
+      <Text style={styles.cardTitle}>{title}</Text>
+      <View style={styles.cardBody}>{children}</View>
+    </View>
+  );
+}
+
+function P({ children }: { children: React.ReactNode }) {
+  return <Text style={styles.paragraph}>{children}</Text>;
+}
+
+function EmailLink() {
+  return (
+    <Text
+      style={styles.link}
+      onPress={() => Linking.openURL(`mailto:${CONTACT_EMAIL}`)}
+      accessibilityRole="link"
+    >
+      {CONTACT_EMAIL}
+    </Text>
+  );
+}
+
+function Bullet({ children }: { children: React.ReactNode }) {
+  return (
+    <View style={styles.bullet}>
+      <Text style={styles.bulletDot}>•</Text>
+      <Text style={styles.bulletText}>{children}</Text>
+    </View>
+  );
+}
+
+export default function PrivacyScreen() {
+  // Configured retention windows, pulled from the API (RETENTION_* env vars).
+  const [retention, setRetention] = useState<RetentionInfo>({ userDays: 180, contextDays: 30 });
+
+  useEffect(() => {
+    if (!isWeb) return;
+    let cancelled = false;
+    fetchRetentionInfo().then((info) => {
+      if (!cancelled) setRetention(info);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!isWeb) {
+    return <Redirect href="/home" />;
+  }
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <View style={styles.container}>
+        <AppBar />
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.contentWrap}>
+            <View style={styles.hero}>
+              <Text style={styles.heroTitle}>Privacy Policy</Text>
+              <Text style={styles.heroSubtitle}>
+                What Jimi collects, why, and what control you have over it.
+              </Text>
+              <Text style={styles.heroMeta}>Last updated: {LAST_UPDATED}</Text>
+            </View>
+
+            <Section eyebrow="What we collect" title="Data tied to your use">
+              <Bullet>
+                A randomly generated <Text style={styles.code}>userId</Text>{' '}
+                stored in your browser&apos;s local storage. It lets us tie
+                your messages and calendar entries together across reloads.
+                It is not linked to your name, email or IP address.
+              </Bullet>
+              <Bullet>
+                The messages you send to Jimi, and Jimi&apos;s replies. Jimi
+                also keeps a short rolling memory of your most recent messages
+                so it can follow the conversation (e.g. &quot;delete it&quot;).
+              </Bullet>
+              <Bullet>
+                The calendar events you manage through Jimi. If you haven&apos;t
+                connected a calendar, they&apos;re stored on our server; if you
+                connect one (see below), Jimi writes them straight to{' '}
+                <Text style={styles.bold}>your own calendar</Text> and keeps no
+                copy.
+              </Bullet>
+              <Bullet>
+                If you connect a calendar (Google, Outlook/Microsoft or Apple/
+                CalDAV), the access tokens that let Jimi act on your behalf —
+                stored <Text style={styles.bold}>encrypted</Text> (AES-256-GCM),
+                limited to calendar events only. We never see your password, and
+                we revoke these tokens when you disconnect or delete your data.
+              </Bullet>
+              <Bullet>
+                Standard server logs (IP address, user agent, request path)
+                kept for security and debugging — purged after 30 days.
+              </Bullet>
+            </Section>
+
+            <Section eyebrow="How it&apos;s used" title="Processing">
+              <P>
+                Your messages are sent to{' '}
+                <Text style={styles.bold}>Mistral AI</Text> — a French
+                company headquartered in Paris — so Jimi can understand
+                natural language and update your calendar. Mistral runs
+                the model that generates Jimi&apos;s replies; requests
+                are processed within the European Union.
+              </P>
+              <P>
+                Per Mistral&apos;s API terms, your prompts and Jimi&apos;s
+                replies are not retained by Mistral and are not used to
+                train their models.
+              </P>
+              <P>
+                When you ask Jimi about your schedule (e.g. &quot;what&apos;s on
+                today?&quot;), the relevant events are sent to Mistral so it can
+                phrase the answer — and, as above, Mistral doesn&apos;t retain
+                them or train on them. We don&apos;t send your calendar to
+                Mistral for any other purpose.
+              </P>
+              <P>
+                Events themselves are stored on our own server (Spring Boot +
+                MariaDB, in the European Union) only if you haven&apos;t
+                connected a calendar. If you connect one, Jimi writes them
+                straight to that provider (Google, Microsoft or your CalDAV
+                host) on your behalf, governed by that provider&apos;s own
+                privacy policy — we keep no copy.
+              </P>
+            </Section>
+
+            <Section eyebrow="Storage" title="Where the data lives">
+              <Bullet>
+                <Text style={styles.code}>userId</Text>: in your browser
+                only (local storage). Clearing your browser data deletes it.
+              </Bullet>
+              <Bullet>
+                Messages, conversation memory and (if no calendar is connected)
+                events: on our server, indexed by{' '}
+                <Text style={styles.code}>userId</Text>. Connected-calendar
+                events live in your own calendar, not on our server.
+              </Bullet>
+              <Bullet>
+                Calendar access tokens: on our server,{' '}
+                <Text style={styles.bold}>encrypted at rest</Text>.
+              </Bullet>
+              <Bullet>
+                We don&apos;t use cookies for tracking. The only persisted
+                client-side value is the <Text style={styles.code}>userId</Text>.
+              </Bullet>
+            </Section>
+
+            <Section eyebrow="Google user data" title="If you connect Google Calendar">
+              <Bullet>
+                With the <Text style={styles.code}>calendar.events</Text> scope,
+                Jimi can <Text style={styles.bold}>read and write events</Text>{' '}
+                on your Google Calendar — and nothing else (no contacts, no
+                email, no other Google data).
+              </Bullet>
+              <Bullet>
+                We use it only to do what you ask in chat: create, edit, delete
+                or summarise your events. When you ask about your schedule, the
+                relevant events are sent to Mistral to phrase the reply (not
+                retained or used for training).
+              </Bullet>
+              <Bullet>
+                We keep <Text style={styles.bold}>no copy</Text> of your Google
+                Calendar events. We store only your access tokens, encrypted,
+                and revoke them when you disconnect or delete your data.
+              </Bullet>
+              <P>
+                Jimi&apos;s use and transfer of information received from Google
+                APIs to any other app will adhere to the{' '}
+                <Text
+                  style={styles.link}
+                  accessibilityRole="link"
+                  onPress={() =>
+                    Linking.openURL(
+                      'https://developers.google.com/terms/api-services-user-data-policy',
+                    )
+                  }
+                >
+                  Google API Services User Data Policy
+                </Text>
+                , including the Limited Use requirements.
+              </P>
+            </Section>
+
+            <Section
+              eyebrow="Sharing"
+              title="Who we share, transfer or disclose data to"
+            >
+              <P>
+                We do <Text style={styles.bold}>not sell</Text> your data, and we
+                do not share, transfer or disclose your{' '}
+                <Text style={styles.bold}>Google user data</Text> — or any other
+                personal data — to third parties, except in the limited cases
+                listed here:
+              </P>
+              <Bullet>
+                <Text style={styles.bold}>Mistral AI</Text> (France, European
+                Union), our language-model provider. When you ask Jimi about your
+                schedule, the relevant calendar events — which may include data
+                from your connected Google Calendar — are sent to Mistral{' '}
+                <Text style={styles.bold}>solely</Text> to phrase Jimi&apos;s
+                reply. Per Mistral&apos;s API terms, this data is{' '}
+                <Text style={styles.bold}>not retained</Text> by Mistral and is{' '}
+                <Text style={styles.bold}>not used to train</Text> their models.
+              </Bullet>
+              <Bullet>
+                <Text style={styles.bold}>Our hosting provider</Text> (servers
+                located in the European Union), which operates the infrastructure
+                where your messages, conversation memory and{' '}
+                <Text style={styles.bold}>encrypted</Text> calendar access tokens
+                are stored. They act only as a data processor on our instructions
+                and cannot read your decrypted tokens or Google Calendar content.
+              </Bullet>
+              <Bullet>
+                <Text style={styles.bold}>Legal authorities</Text>, only where we
+                are legally required to disclose data (for example, a valid court
+                order).
+              </Bullet>
+              <P>
+                We <Text style={styles.bold}>never</Text> share Google user data
+                with advertisers or data brokers, never use it for advertising or
+                ad personalisation, and never transfer it for any purpose
+                unrelated to the calendar features you explicitly request. This is
+                consistent with the Google API Services User Data Policy&apos;s
+                Limited Use requirements.
+              </P>
+            </Section>
+
+            <Section
+              eyebrow="Security"
+              title="How we protect your data, including sensitive data"
+            >
+              <P>
+                We treat your calendar access tokens and calendar content as{' '}
+                <Text style={styles.bold}>sensitive data</Text> and protect them
+                with the following mechanisms:
+              </P>
+              <Bullet>
+                <Text style={styles.bold}>Encryption in transit</Text> — all
+                traffic between the app and our servers, and between our servers
+                and Google or Mistral, is encrypted with HTTPS/TLS.
+              </Bullet>
+              <Bullet>
+                <Text style={styles.bold}>Encryption at rest</Text> — calendar
+                access tokens, the most sensitive data we store, are encrypted
+                with <Text style={styles.bold}>AES-256-GCM</Text>. The encryption
+                key is held separately from the database, so stored tokens are
+                unreadable on their own.
+              </Bullet>
+              <Bullet>
+                <Text style={styles.bold}>Data minimisation</Text> — we request
+                only the <Text style={styles.code}>calendar.events</Text> scope,
+                keep <Text style={styles.bold}>no copy</Text> of your Google
+                Calendar events, and store no other Google data.
+              </Bullet>
+              <Bullet>
+                <Text style={styles.bold}>Restricted access</Text> — only the
+                running service can decrypt tokens, and solely to carry out the
+                action you asked for; access to production systems is restricted
+                and logged.
+              </Bullet>
+              <Bullet>
+                <Text style={styles.bold}>Revocation &amp; deletion</Text> —
+                tokens are revoked the moment you disconnect a calendar or your
+                data is deleted, and all storage and processing takes place within
+                the European Union.
+              </Bullet>
+            </Section>
+
+            <Section eyebrow="Retention" title="How long we keep it">
+              <P>
+                Your data is kept while your{' '}
+                <Text style={styles.code}>userId</Text> stays active. If you
+                don&apos;t use Jimi for{' '}
+                <Text style={styles.bold}>{retention.userDays} days</Text>, we
+                automatically delete everything tied to your{' '}
+                <Text style={styles.code}>userId</Text> — messages, events,
+                conversation memory — and revoke the access to any calendar you
+                connected.
+              </P>
+              <P>
+                The short conversation memory Jimi uses to follow the thread is
+                dropped after{' '}
+                <Text style={styles.bold}>{retention.contextDays} days</Text>,
+                even while your account stays active.
+              </P>
+              <P>
+                You can delete everything at any time by emailing the address
+                below — see &quot;Your rights&quot;.
+              </P>
+            </Section>
+
+            <Section eyebrow="Your rights (GDPR)" title="What you can ask for">
+              <Bullet>
+                <Text style={styles.bold}>Access</Text> — get a copy of the
+                data we hold about your <Text style={styles.code}>userId</Text>.
+              </Bullet>
+              <Bullet>
+                <Text style={styles.bold}>Rectification</Text> — ask us to
+                correct inaccurate information.
+              </Bullet>
+              <Bullet>
+                <Text style={styles.bold}>Deletion</Text> — ask us to wipe
+                everything tied to your <Text style={styles.code}>userId</Text>.
+              </Bullet>
+              <Bullet>
+                <Text style={styles.bold}>Portability</Text> — receive your
+                data in a machine-readable JSON format.
+              </Bullet>
+              <Bullet>
+                <Text style={styles.bold}>Objection</Text> — opt out of any
+                future processing.
+              </Bullet>
+              <P>
+                To exercise any of these, find your <Text style={styles.code}>userId</Text>{' '}
+                in the About page footer and email us at{' '}
+                <EmailLink />. We respond within 30 days.
+              </P>
+            </Section>
+
+            <Section eyebrow="Children" title="Age limit">
+              <P>
+                Jimi is not directed at children under 16. If you believe a
+                child has used Jimi, contact us so we can remove their data.
+              </P>
+            </Section>
+
+            <Section eyebrow="Changes" title="Updates to this policy">
+              <P>
+                We&apos;ll bump the &quot;Last updated&quot; date at the top
+                of this page whenever the policy changes. Material changes
+                will also be announced inside the app.
+              </P>
+            </Section>
+
+            <Section eyebrow="Contact" title="Talk to us">
+              <P>
+                Email <EmailLink />. We read everything that comes in.
+              </P>
+            </Section>
+          </View>
+        </ScrollView>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.background },
+  scroll: { padding: spacing.lg, alignItems: 'center' },
+  contentWrap: {
+    width: '100%',
+    maxWidth: layout.maxContentWidth,
+    paddingBottom: spacing.xxl,
+  },
+  hero: { paddingVertical: spacing.xl },
+  heroTitle: {
+    fontFamily: typography.brandFamily,
+    fontSize: typography.display,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  heroSubtitle: {
+    fontFamily: typography.bodyFamily,
+    fontSize: typography.body,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    lineHeight: 22,
+    maxWidth: 560,
+  },
+  heroMeta: {
+    fontFamily: typography.bodyFamily,
+    fontSize: typography.caption,
+    color: colors.hint,
+    marginTop: spacing.md,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: spacing.md,
+    ...shadow.sm,
+  },
+  eyebrow: {
+    fontFamily: typography.bodyFamily,
+    fontSize: typography.caption,
+    fontWeight: '600',
+    color: colors.accent,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: spacing.xs,
+  },
+  cardTitle: {
+    fontFamily: typography.brandFamily,
+    fontSize: typography.headline,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  cardBody: { gap: spacing.sm },
+  paragraph: {
+    fontFamily: typography.bodyFamily,
+    fontSize: typography.body,
+    color: colors.text,
+    lineHeight: 24,
+  },
+  bullet: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  bulletDot: {
+    fontFamily: typography.bodyFamily,
+    fontSize: typography.body,
+    color: colors.accent,
+    lineHeight: 24,
+    marginTop: 1,
+  },
+  bulletText: {
+    flex: 1,
+    fontFamily: typography.bodyFamily,
+    fontSize: typography.body,
+    color: colors.text,
+    lineHeight: 24,
+  },
+  bold: { fontWeight: '600' },
+  link: {
+    fontWeight: '600',
+    color: colors.accent,
+    textDecorationLine: 'underline',
+  },
+  code: {
+    fontFamily: Platform.select({
+      web: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+      ios: 'Menlo',
+      android: 'monospace',
+      default: 'monospace',
+    }),
+    fontSize: typography.body - 1,
+    color: colors.accentDeep,
+  },
+});

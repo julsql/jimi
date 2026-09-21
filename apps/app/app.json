@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "JIMI The Chatbot",
+    "slug": "jimi-app",
+    "version": "3.1.0",
+    "scheme": "jimi",
+    "orientation": "portrait",
+    "icon": "./assets/images/logo-app.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/images/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#e3e2e2"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "fr.tsp.jimithechatbot",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "buildNumber": "3"
+    },
+    "android": {
+      "package": "fr.tsp.jimithechatbot",
+      "versionCode": 15,
+      "softwareKeyboardLayoutMode": "resize",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/logo-app.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/logo.png"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3841a5bd-3cd4-47f8-91b0-216a65b0b3a9"
+      }
+    }
+  }
+}

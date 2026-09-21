@@ -1,0 +1,53 @@
+{
+  "name": "jimi-app-rn",
+  "version": "2.0.3",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "build:web": "expo export --platform web",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "patch-package"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "~55.0.10",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-navigation/native": "^6.1.18",
+    "expo": "^55.0.18",
+    "expo-constants": "~55.0.15",
+    "expo-crypto": "~55.0.15",
+    "expo-font": "~55.0.6",
+    "expo-linking": "~55.0.14",
+    "expo-router": "~55.0.13",
+    "expo-status-bar": "~55.0.5",
+    "expo-web-browser": "~55.0.14",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-native": "0.83.6",
+    "react-native-safe-area-context": "~5.6.2",
+    "react-native-screens": "~4.23.0",
+    "react-native-web": "^0.21.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.0",
+    "patch-package": "^8.0.1",
+    "typescript": "~5.9.0"
+  },
+  "overrides": {
+    "@babel/core": ">=7.29.6",
+    "brace-expansion@^1": "^1.1.18",
+    "brace-expansion@^5": "^5.0.9",
+    "js-yaml@^3": "^3.15.1",
+    "js-yaml@^4": "^4.3.1",
+    "nanoid": "^3.3.18",
+    "postcss": "^8.5.26",
+    "shell-quote": ">=1.8.4",
+    "tmp": ">=0.2.6",
+    "uuid": "^11.1.1",
+    "ws@^7.0.0": "^7.5.11",
+    "ws@^8.12.1": "^8.21.0"
+  },
+  "private": true
+}
