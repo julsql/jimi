@@ -5,6 +5,11 @@ updates:
     directory: /apps/api
     schedule:
       interval: weekly
+    # Une majeure (Spring Boot 4, springdoc 3, ShedLock 7...) est une migration,
+    # pas une mise a jour : elle se fait a la main, dans sa propre PR.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       maven:
         patterns: ["*"]
@@ -16,10 +21,21 @@ updates:
     schedule:
       interval: weekly
     # Expo fige ses versions par SDK : les majeures passent par `npx expo
-    # install --fix` lors d'une montee de SDK, pas par Dependabot.
+    # install --fix` lors d'une montee de SDK, pas par Dependabot. Pour
+    # react-native (0.x) et React, une mineure est deja une rupture de SDK.
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "react-native"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "react-native-*"
+        update-types: ["version-update:semver-minor"]
     groups:
       npm:
         patterns: ["*"]
