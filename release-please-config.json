@@ -20,7 +20,7 @@
       ]
     }
   },
-  "bootstrap-sha": "6bf7a65a129902759313493ae86ff67644050a68",
+  "bootstrap-sha": "5ae88048c03341ec1f54133ab71b0a53084c8a62",
   "_comment_bootstrap": "Les historiques importes de jimi_api et jimi_app contiennent des messages qui ne sont pas des conventional commits. bootstrap-sha dit a release-please de ne pas remonter avant la creation du monorepo.",
   "_comment_separate_pull_requests": "Une seule PR de release : des PR separees touchent toutes .release-please-manifest.json et se mettent mutuellement en conflit, et release-please ne les rebase pas. Les tags restent par composant (api-v1.1.0, app-v3.2.0).",
   "_comment_native_versions": "Les dossiers natifs sont commites et priment sur app.json : build.gradle et Info.plist portent donc le marqueur x-release-please-version. versionCode (Android) et CFBundleVersion (iOS) restent a incrementer a la main avant chaque envoi aux stores."
