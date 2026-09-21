@@ -27,7 +27,7 @@ jobs:
     name: secrets commis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: gitleaks
@@ -43,7 +43,7 @@ jobs:
       matrix:
         language: [javascript-typescript, java-kotlin]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       # L'input s'appelle `languages` au pluriel. Avec `language`, il est ignore
       # en silence et l'auto-detection prend le dessus.
       - uses: github/codeql-action/init@v4
@@ -70,7 +70,7 @@ jobs:
     name: dependances vulnerables
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 20
@@ -86,7 +86,7 @@ jobs:
       matrix:
         app: [api, app]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Build sans push
         uses: docker/build-push-action@v7
         with:
