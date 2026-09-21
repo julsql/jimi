@@ -23,7 +23,7 @@ RUN npm run build:web
 
 
 # ---- Stage 2: serve the static bundle via nginx -----------------------------
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.30-alpine AS runtime
 
 # Lightweight curl/wget for healthcheck (alpine ships busybox wget already)
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
