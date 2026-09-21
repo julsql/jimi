@@ -1,0 +1,32 @@
+# Hooks git du monorepo.
+#
+# Installation : npx lefthook install (ou make setup)
+#
+# Le but est d'attraper localement ce qui ferait echouer la CI, pas de
+# reproduire la CI : les hooks doivent rester rapides, sinon on les contourne.
+
+pre-commit:
+  parallel: true
+  commands:
+    # Filet anti-secret : le .gitignore couvre les extensions connues, ceci
+    # attrape un fichier renomme ou ajoute de force.
+    pas-de-secret:
+      run: |
+        if git diff --cached --name-only | grep -qiE '\.(jks|keystore|p12|pem|pepk|p8|mobileprovision)$|(^|/)keys/|^keys\.ya?ml$|(^|/)\.env$|client_secret_.*\.json$'; then
+          echo "Fichier de signature ou d'identifiants dans le commit. Refus." >&2
+          exit 1
+        fi
+
+    typecheck-app:
+      glob: "apps/app/**/*.{ts,tsx}"
+      run: cd apps/app && npx tsc --noEmit
+
+commit-msg:
+  commands:
+    conventional-commits:
+      run: |
+        head -1 "{1}" | grep -qE '^(feat|fix|chore|docs|refactor|test|perf|style|build|ci|revert)(\([a-z0-9/-]+\))?!?: .+|^Merge ' || {
+          echo "Message non conforme aux Conventional Commits." >&2
+          echo "Exemples : feat(api): ... / fix(app): ... / chore: ..." >&2
+          exit 1
+        }

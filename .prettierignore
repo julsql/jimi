@@ -1,0 +1,13 @@
+node_modules/
+dist/
+target/
+apps/api/
+apps/app/ios/
+apps/app/android/
+**/package-lock.json
+# release-please reecrit ces fichiers a chaque release, avec son propre
+# formatage : les laisser a prettier garantit un conflit a chaque PR de release.
+apps/app/app.json
+apps/app/package.json
+CHANGELOG.md
+**/CHANGELOG.md

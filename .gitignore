@@ -1,0 +1,44 @@
+# ─────────────────────────────────────────────────────────────
+# SECRETS DE SIGNATURE — ne doivent JAMAIS entrer dans le repo.
+# Un keystore Play Store fuite = plus aucune mise a jour legitime
+# possible, de facon irreversible.
+# ─────────────────────────────────────────────────────────────
+keys/
+keys.yml
+keys.yaml
+*.jks
+*.keystore
+*.p12
+*.pem
+*.pepk
+*.der
+*.mobileprovision
+*.cer
+*.certSigningRequest
+AuthKey_*.p8
+client_secret_*.json
+google-play-service-account*.json
+credentials.json
+local.properties
+.env
+.env.*
+!.env.example
+
+# Artefacts de build
+node_modules/
+dist/
+target/
+*.aab
+*.apk
+*.ipa
+*.xcarchive
+logs/
+*.log
+
+# IDE / OS
+.DS_Store
+.idea/
+xcuserdata/
+*.xcuserstate
+.claude/settings.local.json
+.claude/worktrees/
