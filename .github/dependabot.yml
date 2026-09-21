@@ -28,10 +28,10 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "react-native"
         update-types: ["version-update:semver-minor"]
+      # react et react-dom sont figes a la version exacte du renderer embarque
+      # par react-native (19.2.0 pour le SDK 55) : meme un patch casse le natif.
       - dependency-name: "react"
-        update-types: ["version-update:semver-minor"]
       - dependency-name: "react-dom"
-        update-types: ["version-update:semver-minor"]
       - dependency-name: "@types/react"
         update-types: ["version-update:semver-minor"]
       - dependency-name: "react-native-*"
