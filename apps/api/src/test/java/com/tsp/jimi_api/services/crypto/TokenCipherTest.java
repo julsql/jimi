@@ -1,0 +1,62 @@
+package com.tsp.jimi_api.services.crypto;
+
+import org.junit.jupiter.api.Test;
+
+import java.util.Base64;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class TokenCipherTest {
+
+    private static final String KEY = Base64.getEncoder().encodeToString(new byte[32]);
+
+    @Test
+    void roundTripsAToken() {
+        TokenCipher cipher = new TokenCipher(KEY);
+        String secret = "ya29.a0AfH-very-secret-refresh-token";
+
+        String encrypted = cipher.encrypt(secret);
+
+        assertThat(encrypted).isNotEqualTo(secret);
+        assertThat(cipher.decrypt(encrypted)).isEqualTo(secret);
+    }
+
+    @Test
+    void usesAFreshIvSoCiphertextDiffersEachTime() {
+        TokenCipher cipher = new TokenCipher(KEY);
+
+        assertThat(cipher.encrypt("same")).isNotEqualTo(cipher.encrypt("same"));
+    }
+
+    @Test
+    void ciphertextIsUrlSafe_soItSurvivesTheOAuthStateRoundTrip() {
+        TokenCipher cipher = new TokenCipher(KEY);
+
+        // Encrypt enough payloads that a standard-base64 '+'/'/' would surely
+        // appear; URL-safe output must never contain '+', '/' or '='.
+        for (int i = 0; i < 50; i++) {
+            String encrypted = cipher.encrypt("payload-with-some-length-" + i);
+            assertThat(encrypted).doesNotContain("+", "/", "=");
+        }
+    }
+
+    @Test
+    void withoutAKey_isNotConfiguredAndRefusesToEncrypt() {
+        TokenCipher cipher = new TokenCipher("");
+
+        assertThat(cipher.isConfigured()).isFalse();
+        assertThatThrownBy(() -> cipher.encrypt("x")).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void anInvalidKeyDisablesEncryptionRatherThanCrashing() {
+        // A bad key must never take the whole API down: degrade, don't throw.
+        TokenCipher wrongLength = new TokenCipher(Base64.getEncoder().encodeToString(new byte[7]));
+        assertThat(wrongLength.isConfigured()).isFalse();
+        assertThatThrownBy(() -> wrongLength.encrypt("x")).isInstanceOf(IllegalStateException.class);
+
+        TokenCipher notBase64 = new TokenCipher("not valid base64 !!!");
+        assertThat(notBase64.isConfigured()).isFalse();
+    }
+}

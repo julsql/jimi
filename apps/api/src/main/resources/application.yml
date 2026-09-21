@@ -1,0 +1,94 @@
+# Server
+server:
+  port: 8080
+  # Behind the host nginx (TLS terminated there, proxied as http to loopback).
+  # Honour X-Forwarded-Proto/Host so generated URLs — incl. Swagger's "Try it
+  # out" target and OAuth redirects — use https instead of http (otherwise
+  # Swagger hits http://…/config, gets a 301, and the browser fails the fetch).
+  forward-headers-strategy: framework
+  servlet:
+    encoding:
+      charset: UTF-8
+      force-response: true
+      enabled: true
+
+# Database
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:mariadb://51.222.136.185:3306/JIMI?useSSL=false&serverTimezone=Europe/Paris}
+    username: ${DB_USERNAME:julsql}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.mariadb.jdbc.Driver
+    defer-datasource-initialization: true
+  sql:
+    init:
+      # "always" pour creer la table shedlock au demarrage (schema.sql).
+      # ddl-auto=update ne la genere pas (ce n'est pas une entite JPA).
+      mode: always
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+# Swagger
+springdoc:
+  default-produces-media-type: application/json
+
+# Mistral AI chat completions. Set MISTRAL_API_KEY in .env (gitignored).
+llm:
+  url: https://api.mistral.ai/v1/chat/completions
+  model: ${MISTRAL_MODEL:mistral-small-latest}
+  api-key: ${MISTRAL_API_KEY:}
+  temperature: 0.2
+  json-mode: true
+
+# Encryption key for OAuth tokens at rest (base64 32 bytes: openssl rand -base64 32).
+security:
+  token-encryption-key: ${TOKEN_ENCRYPTION_KEY:}
+
+# Calendar provider deploy-time toggles. Flip one to false + redeploy to pull
+# that option from the app (GET /config stops advertising it and /connect/<p>
+# refuses links) without shipping a new app build. Default: all enabled.
+calendar:
+  providers:
+    google: ${GOOGLE_CALENDAR_ENABLED:true}
+    microsoft: ${MICROSOFT_CALENDAR_ENABLED:true}
+    caldav: ${CALDAV_CALENDAR_ENABLED:true}
+
+# Google Calendar OAuth client. See docs/google-calendar-setup.md.
+# When client-id/secret are blank, calendar features stay disabled (NEEDS_CONNECTION).
+oauth:
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
+    redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/oauth/google/callback}
+    app-return-url: ${APP_RETURN_URL:jimi://connected}
+    scope: https://www.googleapis.com/auth/calendar.events
+  # Microsoft (Outlook / 365) OAuth client. See docs/microsoft-calendar-setup.md.
+  # Blank client-id/secret → Microsoft stays disabled (NEEDS_CONNECTION).
+  microsoft:
+    client-id: ${MICROSOFT_CLIENT_ID:}
+    client-secret: ${MICROSOFT_CLIENT_SECRET:}
+    redirect-uri: ${MICROSOFT_REDIRECT_URI:http://localhost:8080/oauth/microsoft/callback}
+    app-return-url: ${APP_RETURN_URL:jimi://connected}
+    tenant: ${MICROSOFT_TENANT:common}
+
+# Data retention — a scheduled job purges inactive users (and all their data,
+# revoking calendar tokens) and old conversation memory. Set retention.enabled
+# to false to disable. Days are inactivity windows.
+retention:
+  enabled: ${RETENTION_ENABLED:true}
+  user-days: ${RETENTION_USER_DAYS:180}
+  context-days: ${RETENTION_CONTEXT_DAYS:30}
+  cron: ${RETENTION_CRON:0 30 3 * * *}
+
+logging:
+  level:
+    org:
+      springframework:
+        jdbc:
+          core: DEBUG
+        web: info
+    root: info
+  file:
+    path: ./logs
