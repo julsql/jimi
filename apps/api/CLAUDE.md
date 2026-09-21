@@ -90,13 +90,13 @@ so the API stack stands on its own.
 
 Flow (fully automated, no SSH):
 
-- Push to `main` runs `.github/workflows/docker.yml`, which builds the
-  image and pushes it to **GHCR** (`ghcr.io/<owner>/jimi-api`, tagged
+- Push to `main` touching `apps/api/` runs `.github/workflows/api.yml` (monorepo
+  root): `./mvnw test`, then the image is pushed to **GHCR** (`ghcr.io/julsql/jimi/api`, tagged
   `latest` + commit SHA).
 - **Keel** polls GHCR from inside the cluster and rolls out the
   Deployment automatically when the `latest` digest changes.
 - The k8s manifests (Deployment / Service / Ingress / secrets) live in
-  the **`k3s-manifests`** repo, not here — that's where env vars, the
+  the server repo (`k3s/jimi/`), not here — that's where env vars, the
   public host and TLS are configured.
 
 For local dev, `docker-compose.db.yml` still spins up a throwaway

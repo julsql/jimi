@@ -9,7 +9,8 @@ the loop, no risk of hallucinated events.
 
 This repo is the **client app**. One Expo / React Native codebase
 runs on iOS, Android and Web. The Spring Boot backend lives in the
-sibling [`jimi_api`](../jimi_api) repo.
+[`apps/api`](../api) directory of the same monorepo — see the
+[monorepo README](../../README.md).
 
 The Android build is published on the Play Store:
 <https://play.google.com/store/apps/details?id=fr.tsp.jimithechatbot>
@@ -42,8 +43,8 @@ The Android build is published on the Play Store:
 ## Quickstart
 
 ```bash
-git clone <this-repo>
-cd jimi_app
+git clone git@github.com:julsql/jimi.git
+cd jimi/apps/app
 npm install
 
 # Web (recommended for dev — fastest reload)
@@ -120,7 +121,7 @@ order.)
 ## Backend integration
 
 Two endpoints, fully documented in
-[`jimi_api/README.md`](../jimi_api/README.md):
+[`apps/api/README.md`](../api/README.md):
 
 ### `POST /chat` — natural-language turn
 
@@ -199,7 +200,7 @@ The schedule page deliberately uses the LLM-free `GET /agenda`
 endpoint. The chat path also benefits from the backend's
 hardcoded short-circuit when the agenda is empty, plus a strong
 "never invent" preamble in the extraction prompt — see
-[`jimi_api/global/Prompts.java`](../jimi_api/src/main/java/com/tsp/jimi_api/global/Prompts.java).
+[`apps/api/.../global/Prompts.java`](../api/src/main/java/com/tsp/jimi_api/global/Prompts.java).
 
 ## Configuration
 
@@ -223,18 +224,18 @@ host machine. Use:
 Deployment is fully automated through the container registry — no
 SSH, no host checkout, no per-host nginx.
 
-1. **CI build & push.** `.github/workflows/docker.yml` runs on every
-   push to `main` (and on manual dispatch): it builds the multi-stage
+1. **CI build & push.** [`.github/workflows/app.yml`](../../.github/workflows/app.yml)
+   (monorepo root) runs on every push to `main` touching `apps/app/` (and on manual dispatch): it builds the multi-stage
    Dockerfile (`npm ci` + `npm run build:web`, served by an internal
    nginx) with `EXPO_PUBLIC_API_URL` baked in as a build arg, then
-   pushes the image to **GHCR** (`ghcr.io/<owner>/jimi-app`), tagged
+   pushes the image to **GHCR** (`ghcr.io/julsql/jimi/app`), tagged
    `latest` and `sha-<commit>`.
 2. **k3s auto-rollout via Keel.** Deployment is automatic: after the
    push, the CI pings the server (Keel webhook), which updates its
    pods. No manual `kubectl` step is needed to ship a merged change.
 
 The Kubernetes manifests (Deployment, Service, Ingress + TLS) live in
-the separate **`k3s-manifests`** repo, not here.
+the server repo (`k3s/jimi/`), not here.
 
 ## Android release build
 
@@ -277,19 +278,13 @@ Once per machine:
 
 ### Release procedure
 
-**1. Bump the version in [`app.json`](./app.json)**
+**1. Bump the version**
 
-```jsonc
-{
-  "expo": {
-    "version": "2.0.4",                 // human-readable, semver
-    "android": {
-      "package": "fr.tsp.jimithechatbot",
-      "versionCode": 5                  // strictly > last live value
-    }
-  }
-}
-```
+The semver (`version` / `versionName`) comes from **release-please**:
+merge its release PR first (see step 6). Then bump the build number
+by hand — `versionCode` in both [`app.json`](./app.json) and
+`android/app/build.gradle` (the committed native project wins over
+`app.json`).
 
 `versionCode` must be a strictly increasing integer — Play Console
 rejects equal or lower values. Check the current live code in Play
@@ -428,15 +423,12 @@ over a few days while watching the *Crashes & ANRs* dashboard.
 
 **6. Tag the release in git**
 
-```bash
-git add app.json
-git commit -m "release: android 2.0.4 (versionCode 5)"
-git tag -a android-v2.0.4 -m "Android 2.0.4"
-git push && git push --tags
-```
-
-Tagging makes it easy to rebuild the exact AAB later if the Play
-Store ever asks you to re-upload.
+Versions and tags are handled by **release-please** at the monorepo
+root: merging its release PR bumps `package.json`, `app.json`,
+`android/app/build.gradle` and `ios/.../Info.plist`, writes
+`CHANGELOG.md` and tags `app-vX.Y.Z`. Only `versionCode` (step 1)
+stays manual. Build the AAB from that tag so it can be rebuilt
+exactly if the Play Store ever asks for a re-upload.
 
 ### Troubleshooting
 

@@ -8,8 +8,8 @@ API parks a draft conversation server-side and asks the frontend for
 the missing fields — multi-turn extraction without any client-side
 state machine.
 
-The web/Android client lives in the sibling
-[`jimi_app`](../jimi_app) repo.
+The iOS/Android/web client lives next door in
+[`apps/app`](../app) — see the [monorepo README](../../README.md).
 
 ## Table of contents
 
@@ -75,8 +75,8 @@ inventing. See [`global/Prompts.java`](src/main/java/com/tsp/jimi_api/global/Pro
 ### Full stack (API + DB) with Docker
 
 ```bash
-git clone <this-repo>
-cd jimi_api
+git clone git@github.com:julsql/jimi.git
+cd jimi/apps/api
 
 cp .env.example .env
 # edit .env — at minimum set MISTRAL_API_KEY=...
@@ -273,14 +273,15 @@ The API runs on **k3s**, deployed independently from the frontend
 URL). Deployment is fully automated — no SSH, no manual steps:
 
 1. Push to `main` (or trigger it manually) runs
-   [`.github/workflows/docker.yml`](.github/workflows/docker.yml),
-   which builds the Docker image and pushes it to **GHCR**
-   (`ghcr.io/<owner>/jimi-api`), tagged `latest` + the commit SHA.
+   [`.github/workflows/api.yml`](../../.github/workflows/api.yml)
+   (monorepo root), which runs the tests, builds the Docker image and
+   pushes it to **GHCR** (`ghcr.io/julsql/jimi/api`), tagged `latest` +
+   the commit SHA. Only changes under `apps/api/` trigger it.
 2. The CI then pings the server (Keel webhook), which updates its
    pods automatically.
 
 The k8s manifests (Deployment, Service, Ingress, secrets) live in the
-**`k3s-manifests`** repo, not here. Configuration that used to sit in
+server repo (`k3s/jimi/`), not here. Configuration that used to sit in
 the prod compose (env vars, the public host, TLS) is now expressed
 there.
 

@@ -7,7 +7,7 @@ of truth — this file is just orientation.
 
 The JIMI client app: a chatbot-driven calendar assistant that runs on
 iOS, Android and Web from a single React Native codebase. The Spring
-Boot backend lives in the sibling `jimi_api/` directory.
+Boot backend lives in `../api` (monorepo `julsql/jimi`, root README at `../../README.md`).
 
 The Flutter origin (Dart, `lib/`, `pubspec.yaml`, etc.) was deleted on
 2026-04-28. Don't reintroduce Dart sources or Flutter-specific tooling.
@@ -27,7 +27,7 @@ Standard Expo layout — everything lives at the project root, no nested
 app folder:
 
 ```
-jimi_app/
+apps/app/
 ├── app/                        # Expo Router routes (file-based)
 │   ├── _layout.tsx             # Stack root + ApiHealthProvider + theme
 │   ├── index.tsx               # → redirect to /home
@@ -72,7 +72,7 @@ jimi_app/
 
 ## API contract
 
-Backend is Spring Boot; the contract is documented in `jimi_api/CLAUDE.md`.
+Backend is Spring Boot; the contract is documented in `../api/CLAUDE.md`.
 
 `POST /chat` — natural-language turn (LLM):
 ```json
@@ -180,16 +180,16 @@ to the project root.
 
 Deploys run entirely through GHCR + k3s — no SSH, no host checkout.
 
-- **CI** (`.github/workflows/docker.yml`) builds this repo's Dockerfile
-  on every push to `main` and pushes the image to GHCR
-  (`ghcr.io/<owner>/jimi-app`, tags `latest` + `sha-<commit>`). The
+- **CI** (`.github/workflows/app.yml` at the monorepo root) typechecks, then builds
+  `apps/app/Dockerfile` on every push to `main` touching `apps/app/`, and pushes the image to GHCR
+  (`ghcr.io/julsql/jimi/app`, tags `latest` + `sha-<commit>`). The
   Dockerfile bakes `EXPO_PUBLIC_API_URL` in as a `--build-arg`, so the
   public API URL is fixed at build time.
 - **k3s + Keel**: the cluster runs [Keel](https://keel.sh), which polls
   GHCR and rolls out the Deployment whenever the `latest` digest
   changes. Merging to `main` is the whole deploy.
-- The k8s manifests (Deployment/Service/Ingress) live in the separate
-  **`k3s-manifests`** repo, not here.
+- The k8s manifests (Deployment/Service/Ingress) live in the server repo
+  (`k3s/jimi/`), not here.
 
 `docker-compose.yml` in this repo is **local dev only** (one `app`
 container serving the Expo Web bundle on `${APP_PORT:-8101}:80`); it
