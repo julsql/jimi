@@ -88,4 +88,5 @@ jobs:
 
       - name: Keel secret missing
         if: env.KEEL_AUTH == ''
-        run: echo "::warning::KEEL_WEBHOOK_AUTH absent : image poussee mais deploiement non declenche."
+        run: |
+          echo "::warning::KEEL_WEBHOOK_AUTH absent : image poussee mais deploiement non declenche."
