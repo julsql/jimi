@@ -126,7 +126,7 @@ credentials.**
 | `MISTRAL_API_KEY`    | LLM API key — **required**           | _(empty — required)_                                   |
 | `LLM_API_KEY`        | Fallback if `MISTRAL_API_KEY` unset  | _(empty)_                                              |
 | `LLM_URL`            | Chat-completions endpoint            | `https://api.mistral.ai/v1/chat/completions`           |
-| `LLM_MODEL`          | Model name                           | `mistral-small-latest`                                 |
+| `MISTRAL_MODEL`      | Model name (`LLM_MODEL` also works)  | `ministral-14b-latest`                                 |
 | `DB_URL`             | JDBC URL                             | _(prod URL — override locally)_                        |
 | `DB_USERNAME`        | DB user                              | `julsql`                                               |
 | `DB_PASSWORD`        | DB password                          | _(empty — set it)_                                     |
@@ -257,7 +257,7 @@ OpenAI-compatible `/chat/completions` endpoint. Swap by overriding
 
 | Provider   | `LLM_URL`                                         | Sample `LLM_MODEL`                  |
 |------------|---------------------------------------------------|-------------------------------------|
-| Mistral    | `https://api.mistral.ai/v1/chat/completions`      | `mistral-small-latest`              |
+| Mistral    | `https://api.mistral.ai/v1/chat/completions`      | `ministral-14b-latest`              |
 | Groq       | `https://api.groq.com/openai/v1/chat/completions` | `llama-3.3-70b-versatile`           |
 | OpenRouter | `https://openrouter.ai/api/v1/chat/completions`   | `meta-llama/llama-3.3-70b-instruct` |
 | Ollama     | `http://localhost:11434/v1/chat/completions`      | `llama3.1`                          |

@@ -37,7 +37,8 @@ springdoc:
 # Mistral AI chat completions. Set MISTRAL_API_KEY in .env (gitignored).
 llm:
   url: https://api.mistral.ai/v1/chat/completions
-  model: ${MISTRAL_MODEL:mistral-small-latest}
+  # mistral-small / mistral-medium are no longer served on the free plan (0 req/min).
+  model: ${MISTRAL_MODEL:ministral-14b-latest}
   api-key: ${MISTRAL_API_KEY:}
   temperature: 0.2
   json-mode: true

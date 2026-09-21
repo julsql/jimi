@@ -16,7 +16,7 @@ import org.springframework.context.annotation.Configuration;
 public class LlmProperties {
 
     private String url = "https://api.mistral.ai/v1/chat/completions";
-    private String model = "mistral-small-latest";
+    private String model = "ministral-14b-latest";
     private String apiKey = "";
     private double temperature = 0.2;
     private boolean jsonMode = true;
