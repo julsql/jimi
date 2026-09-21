@@ -1,0 +1,12 @@
+# Configuration CodeQL.
+#
+# Les projets natifs generes par Expo (apps/app/ios, apps/app/android) sont
+# exclus : c'est du code d'amorce, et Swift/Objective-C ne s'analysent que sur
+# un runner macOS, facture 10x.
+name: JIMI
+paths-ignore:
+  - apps/app/ios
+  - apps/app/android
+  - "**/node_modules"
+  - "**/target"
+  - "**/dist"

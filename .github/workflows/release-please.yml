@@ -1,0 +1,25 @@
+# Versionnage et changelogs, un par application.
+#
+# release-please lit les conventional commits et maintient une PR de release
+# unique pour tout le depot. La fusionner pose un tag par composant
+# (api-v1.2.0, app-v3.2.0). Le deploiement web/API suit deja main via Keel ; les
+# tags servent de repere pour les builds natifs publies a la main sur les stores.
+name: release-please
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

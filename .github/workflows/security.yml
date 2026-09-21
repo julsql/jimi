@@ -1,0 +1,110 @@
+# Analyse de securite du depot.
+#
+# L'API detient des jetons OAuth d'agendas tiers (Google, Microsoft, CalDAV) :
+# un secret commis ou une dependance compromise a des consequences directes pour
+# les utilisateurs. Ces controles tournent sur chaque PR, plus une fois par
+# semaine pour attraper les vulnerabilites publiees apres coup.
+name: security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  secrets:
+    name: secrets commis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, java-kotlin]
+    steps:
+      - uses: actions/checkout@v5
+      # L'input s'appelle `languages` au pluriel. Avec `language`, il est ignore
+      # en silence et l'auto-detection prend le dessus.
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          config-file: .github/codeql/config.yml
+      # autobuild cherche un projet a la racine et echoue : le Maven vit dans
+      # apps/api. On construit explicitement pour Java.
+      - uses: actions/setup-java@v5
+        if: matrix.language == 'java-kotlin'
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+      - name: Build Java
+        if: matrix.language == 'java-kotlin'
+        run: ./mvnw -B -q -DskipTests package
+        working-directory: apps/api
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
+
+  dependencies:
+    name: dependances vulnerables
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - name: npm audit (app)
+        working-directory: apps/app
+        run: npm audit --omit=dev --audit-level=high
+
+  image:
+    name: image ${{ matrix.app }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [api, app]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build sans push
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/${{ matrix.app }}
+          push: false
+          load: true
+          tags: jimi-${{ matrix.app }}:scan
+      # Image officielle plutot que l'action, dont le telechargement du binaire
+      # echoue de facon intermittente. Seulement les CVE : gitleaks couvre deja
+      # les secrets du depot.
+      - name: trivy
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+            aquasec/trivy:latest image \
+              --severity HIGH,CRITICAL \
+              --ignore-unfixed \
+              --scanners vuln \
+              --exit-code 1 \
+              jimi-${{ matrix.app }}:scan

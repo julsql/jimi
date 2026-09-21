@@ -1,0 +1,34 @@
+# Mises a jour de dependances, groupees par ecosysteme pour limiter le bruit.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /apps/api
+    schedule:
+      interval: weekly
+    groups:
+      maven:
+        patterns: ["*"]
+    commit-message:
+      prefix: "chore(api)"
+
+  - package-ecosystem: npm
+    directory: /apps/app
+    schedule:
+      interval: weekly
+    # Expo fige ses versions par SDK : les majeures passent par `npx expo
+    # install --fix` lors d'une montee de SDK, pas par Dependabot.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      npm:
+        patterns: ["*"]
+    commit-message:
+      prefix: "chore(app)"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"
