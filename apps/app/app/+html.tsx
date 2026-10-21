@@ -46,6 +46,12 @@ export default function Root({ children }: PropsWithChildren) {
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: responsiveStyle }} />
         <script dangerouslySetInnerHTML={{ __html: viewportSyncScript }} />
+        <script
+          defer
+          src="https://stats.julsql.fr/js/app.js"
+          data-website-id="baf36dd9-1192-4211-b038-df8f359b14cd"
+          data-domains="jimi.julsql.fr"
+        />
       </head>
       <body>{children}</body>
     </html>
