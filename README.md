@@ -15,6 +15,12 @@ s'applique sans repasser par le LLM.
 - Android : [Play Store](https://play.google.com/store/apps/details?id=fr.tsp.jimithechatbot)
 - API : [jimi-api.julsql.fr](https://jimi-api.julsql.fr/swagger-ui/index.html)
 
+## Aperçu
+
+<p align="center">
+  <img src="docs/screenshots/web-chat.png" alt="Écran de conversation (web)" width="80%">
+</p>
+
 ## Organisation
 
 | Chemin      | Contenu                                                                   |
