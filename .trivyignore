@@ -1,7 +1,0 @@
-# CVE ignorees par le scan trivy des images (workflow security).
-# Chaque entree : justification + issue de suivi + date d'expiration (exp:).
-
-# spring-webmvc 6.2.x : corrigees seulement dans Spring Framework 7.0.9 (Spring Boot 4).
-# L'API n'utilise ni XsltView ni le rendu de fragments en SSE. Suivi : #6
-CVE-2026-47884 exp:2027-01-31
-CVE-2026-47890 exp:2027-01-31
