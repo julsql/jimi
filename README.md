@@ -15,6 +15,18 @@ s'applique sans repasser par le LLM.
 - Android : [Play Store](https://play.google.com/store/apps/details?id=fr.tsp.jimithechatbot)
 - API : [jimi-api.julsql.fr](https://jimi-api.julsql.fr/swagger-ui/index.html)
 
+## Aperçu
+
+<p align="center">
+  <img src="docs/screenshots/web-chat.png" alt="Écran de conversation (web)" width="80%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/iphone-chat.png" alt="Discussion sur iPhone : ajout d'une réunion" width="30%">
+  <img src="docs/screenshots/android-chat.png" alt="Discussion sur Android : ajout d'une réunion" width="30%">
+  <img src="docs/screenshots/iphone-schedule.png" alt="Planning du jour sur iPhone" width="30%">
+</p>
+
 ## Organisation
 
 | Chemin      | Contenu                                                                   |
