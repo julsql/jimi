@@ -46,7 +46,7 @@ public class GoogleOAuthService {
 
     public String authorizationUrl(final String userId, final String returnUrl) {
         OAuthStateCodec.IssuedState issued = stateCodec.issue(userId, returnUrl);
-        return UriComponentsBuilder.fromHttpUrl(props.getAuthUri())
+        return UriComponentsBuilder.fromUriString(props.getAuthUri())
                 .queryParam("client_id", props.getClientId())
                 .queryParam("redirect_uri", props.getRedirectUri())
                 .queryParam("response_type", "code")

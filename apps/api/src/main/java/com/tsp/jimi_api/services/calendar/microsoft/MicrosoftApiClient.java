@@ -32,7 +32,7 @@ public class MicrosoftApiClient {
 
     /** Events overlapping [from, to] via calendarView, returned in the user's tz. */
     public JSONObject listEvents(final String userId, final String fromIso, final String toIso) {
-        String url = UriComponentsBuilder.fromHttpUrl(BASE + "/calendarView")
+        String url = UriComponentsBuilder.fromUriString(BASE + "/calendarView")
                 .queryParam("startDateTime", fromIso)
                 .queryParam("endDateTime", toIso)
                 .queryParam("$orderby", "start/dateTime")

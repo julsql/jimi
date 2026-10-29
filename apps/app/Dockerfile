@@ -25,6 +25,9 @@ RUN npm run build:web
 # ---- Stage 2: serve the static bundle via nginx -----------------------------
 FROM nginx:1.30-alpine AS runtime
 
+# Paquets Alpine a jour : l'image de base peut avoir du retard sur les correctifs (brotli, curl...)
+RUN apk upgrade --no-cache
+
 # Lightweight curl/wget for healthcheck (alpine ships busybox wget already)
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
