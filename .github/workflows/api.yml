@@ -32,7 +32,7 @@ jobs:
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 25
           cache: maven
       - run: ./mvnw -B -q test
         working-directory: apps/api

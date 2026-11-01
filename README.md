@@ -31,7 +31,7 @@ s'applique sans repasser par le LLM.
 
 | Chemin      | Contenu                                                                   |
 | ----------- | ------------------------------------------------------------------------- |
-| `apps/api/` | API Spring Boot 3 / Java 17 — LLM, fournisseurs d'agenda, MariaDB         |
+| `apps/api/` | API Spring Boot 3 / Java 25 — LLM, fournisseurs d'agenda, MariaDB         |
 | `apps/app/` | Client Expo / React Native — une base de code pour iOS, Android et le web |
 | `docs/`     | Ressources partagées                                                      |
 

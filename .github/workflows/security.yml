@@ -56,7 +56,7 @@ jobs:
         if: matrix.language == 'java-kotlin'
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 25
           cache: maven
       - name: Build Java
         if: matrix.language == 'java-kotlin'
