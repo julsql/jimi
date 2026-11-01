@@ -63,7 +63,7 @@ inventing. See [`global/Prompts.java`](src/main/java/com/tsp/jimi_api/global/Pro
 
 ## Stack
 
-- **Spring Boot 3** + **Java 17** (built with Maven)
+- **Spring Boot 3** + **Java 25** (built with Maven)
 - **MariaDB 11** (via Hibernate / Spring Data JPA, `ddl-auto=update`)
 - **Mistral AI** by default — any OpenAI-compatible
   `/chat/completions` endpoint works (Groq, Ollama, OpenRouter…)

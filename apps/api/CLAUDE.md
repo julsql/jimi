@@ -5,7 +5,7 @@ source of truth, this is just orientation.
 
 ## Project in one paragraph
 
-JIMI API is a Spring Boot 3 / Java 17 chatbot backend. The user posts a
+JIMI API is a Spring Boot 3 / Java 25 chatbot backend. The user posts a
 natural-language message; the API asks an LLM (default: **Mistral AI**, free
 tier, OpenAI-compatible) to extract structured intent and acts on it through the
 `CalendarProvider` abstraction.
