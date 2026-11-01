@@ -32,7 +32,7 @@ public class GoogleApiClient {
 
     /** GET primary calendar events between two RFC3339 instants, time-ordered. */
     public JSONObject listEvents(final String userId, final String timeMin, final String timeMax) {
-        String url = UriComponentsBuilder.fromHttpUrl(BASE + "/calendars/primary/events")
+        String url = UriComponentsBuilder.fromUriString(BASE + "/calendars/primary/events")
                 .queryParam("timeMin", timeMin)
                 .queryParam("timeMax", timeMax)
                 .queryParam("singleEvents", true)

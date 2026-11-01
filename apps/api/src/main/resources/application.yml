@@ -14,6 +14,13 @@ server:
 
 # Database
 spring:
+  jackson:
+    # Spring Boot 4 / Jackson 3 : on garde les defauts de Jackson 2.
+    use-jackson2-defaults: true
+    deserialization:
+      # Jackson 3 refuse par defaut un primitif absent ou null. Les apps deja
+      # deployees n'envoient pas calendarMode (boolean) a POST /chat : il doit valoir false.
+      fail-on-null-for-primitives: false
   datasource:
     url: ${DB_URL:jdbc:mariadb://51.222.136.185:3306/JIMI?useSSL=false&serverTimezone=Europe/Paris}
     username: ${DB_USERNAME:julsql}
