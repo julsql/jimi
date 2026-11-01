@@ -4,11 +4,10 @@
 [extend]
 useDefault = true
 
-# Podfile.lock liste un checksum SHA-1 par podspec (`Pod-Name: <40 hex>`) :
-# generic-api-key les prend pour des cles. Seules ces lignes sont ignorees.
-[[allowlists]]
-description = "CocoaPods podspec checksums"
-condition = "AND"
+# Podfile.lock (genere par `pod install`) ne contient que des noms de pods et
+# leurs checksums SHA-1, que generic-api-key prend pour des cles.
+# Table [allowlist] historique : gitleaks-action embarque 8.24, qui ignore
+# [[allowlists]] et traite `condition = "AND"` comme un OU.
+[allowlist]
+description = "CocoaPods lockfile (podspec checksums)"
 paths = ['''(^|/)ios/Podfile\.lock$''']
-regexTarget = "line"
-regexes = ['''^\s+[A-Za-z0-9_+./-]+: [0-9a-f]{40}$''']
