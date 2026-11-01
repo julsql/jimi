@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.6
 
 # ---- Stage 1: build the static Expo Web bundle ------------------------------
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 
 # The API URL is baked into the JS bundle at build time, so the same Docker
