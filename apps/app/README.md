@@ -31,7 +31,7 @@ The Android build is published on the Play Store:
 
 ## Stack
 
-- **React Native 0.74** + **Expo SDK 51**
+- **React Native 0.88** + **Expo SDK 58**
 - **Expo Router** — file-based routing under `app/`
 - **react-native-web** for the browser target
 - **TypeScript strict**

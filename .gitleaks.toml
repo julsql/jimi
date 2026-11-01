@@ -1,0 +1,13 @@
+# Configuration gitleaks (job "secrets commis" de security.yml).
+# Regles par defaut, plus une exception ciblee.
+
+[extend]
+useDefault = true
+
+# Podfile.lock (genere par `pod install`) ne contient que des noms de pods et
+# leurs checksums SHA-1, que generic-api-key prend pour des cles.
+# Table [allowlist] historique : gitleaks-action embarque 8.24, qui ignore
+# [[allowlists]] et traite `condition = "AND"` comme un OU.
+[allowlist]
+description = "CocoaPods lockfile (podspec checksums)"
+paths = ['''(^|/)ios/Podfile\.lock$''']

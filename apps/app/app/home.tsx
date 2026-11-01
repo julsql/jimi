@@ -10,8 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ListRenderItemInfo,
-  type NativeSyntheticEvent,
-  type TextInputKeyPressEventData,
+  type TextInputKeyPressEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link } from 'expo-router';
@@ -249,11 +248,9 @@ export default function ChatScreen() {
   // Web only: a multiline TextInput swallows onSubmitEditing, so we hook
   // the raw key event. Enter sends; Shift/Cmd/Ctrl/Alt+Enter inserts a
   // newline like every other modern chat UI.
-  const handleKeyPress = (
-    e: NativeSyntheticEvent<TextInputKeyPressEventData>,
-  ) => {
+  const handleKeyPress = (e: TextInputKeyPressEvent) => {
     if (Platform.OS !== 'web') return;
-    const native = e.nativeEvent as TextInputKeyPressEventData & {
+    const native = e.nativeEvent as TextInputKeyPressEvent['nativeEvent'] & {
       shiftKey?: boolean;
       metaKey?: boolean;
       ctrlKey?: boolean;
@@ -325,7 +322,7 @@ export default function ChatScreen() {
                   onContentSizeChange={() =>
                     listRef.current?.scrollToEnd({ animated: true })
                   }
-                  ListFooterComponent={pending ? <TypingIndicator /> : null}
+                  ListFooterComponent={pending ? <TypingIndicator /> : undefined}
                 />
               ) : (
                 <EmptyChat onSuggestionPress={submit} disabled={!ready} />
