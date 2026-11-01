@@ -83,7 +83,7 @@
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
-            <version>20250517</version>
+            <version>20260814</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.vaadin.external.google</groupId>
@@ -155,7 +155,7 @@
 
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.6.0</version>
+                <version>3.6.1</version>
                 <configuration>
                     <includes>
                         <include>**/*Test.java</include>
