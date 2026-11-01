@@ -50,7 +50,7 @@
     },
     "android": {
       "package": "fr.tsp.jimithechatbot",
-      "versionCode": 15,
+      "versionCode": 20,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/logo-app.png",
