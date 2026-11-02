@@ -64,7 +64,7 @@ inventing. See [`global/Prompts.java`](src/main/java/com/tsp/jimi_api/global/Pro
 ## Stack
 
 - **Spring Boot 3** + **Java 25** (built with Maven)
-- **MariaDB 11** (via Hibernate / Spring Data JPA, `ddl-auto=update`)
+- **MariaDB 12.3 LTS** (via Hibernate / Spring Data JPA, `ddl-auto=update`)
 - **Mistral AI** by default — any OpenAI-compatible
   `/chat/completions` endpoint works (Groq, Ollama, OpenRouter…)
 - **springdoc-openapi 2.1** for the live OpenAPI / Swagger UI
@@ -91,7 +91,7 @@ What runs:
 | Service | Image                | Host port             | Notes                                  |
 |---------|----------------------|-----------------------|----------------------------------------|
 | `api`   | built locally        | `127.0.0.1:8102→8080` | Spring Boot backend                    |
-| `db`    | `mariadb:11`         | (internal only)       | data persisted in volume `jimi-db-data` |
+| `db`    | `mariadb:12.3`       | (internal only)       | data persisted in volume `jimi-db-data` |
 
 Wipe and restart from scratch: `docker compose down -v`.
 
