@@ -18,7 +18,7 @@
 
 services:
   db:
-    image: mariadb:11
+    image: mariadb:12.3
     container_name: jimi-db
     restart: unless-stopped
     environment:
@@ -26,6 +26,8 @@ services:
       MARIADB_DATABASE: ${DB_NAME:-JIMI}
       MARIADB_USER: ${DB_USERNAME:-jimi}
       MARIADB_PASSWORD: ${DB_PASSWORD:-jimi}
+      # Runs mariadb-upgrade on start when an existing volume was created by an older version.
+      MARIADB_AUTO_UPGRADE: "1"
     ports:
       - "3306:3306"
     volumes:
